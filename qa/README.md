@@ -72,8 +72,8 @@ O `rodar-tudo.sh` sobe a API (banco e uploads em pastas temporárias) e o `vite 
 | Parte 1 | `qa/aceite-admin.mjs` | Admin pela API; os ids vão para `saida/aceite-admin.json` |
 | Parte 2, tela | `qa/tela/parte2.mjs` | inspetor no celular, online e offline, fotos comprimidas, estados de sync, axe |
 | Parte 2, servidor | `qa/verifica-inspecao.mts` | com a API parada, confere no banco o que a tela gravou |
-| Parte 3, tela | `qa/tela/parte3.mjs` | V1 continua após V2/V3, retrato do veículo, recusa de placa duplicada, axe |
-| Aparelho novo | `qa/tela/aparelho-novo.mjs` | IndexedDB vazio: todo cartão abre na versão da inspeção, sem "indisponível" |
+| Parte 3, tela | `qa/tela/parte3.mjs` | V1 continua após V2/V3, retrato do veículo, recusa de placa duplicada, versão ausente (sem rede: aviso; com rede: volta sozinha), axe |
+| Aparelho novo | `qa/tela/aparelho-novo.mjs` | IndexedDB vazio e rota de versões atrasada em 3 s (`ATRASO_VERSOES_MS`): todo cartão abre na versão da inspeção, sem "indisponível" em nenhum momento |
 | axe do Admin | `qa/tela/axe-admin.mjs` | WCAG 2.1 AA em 7 telas × desktop e celular, 0 erro de console |
 | Parte 3, servidor | `qa/aceite-versoes-sync.mjs` | num **segundo** banco zerado, porque publica V2/V3 no mesmo modelo da Parte 3 de tela |
 

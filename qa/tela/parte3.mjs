@@ -215,17 +215,25 @@ ok('5 ID inexistente → "Verificação não encontrada" com botão para o iníc
 await tela('06-inexistente');
 
 // 6. MODELO AUSENTE NO APARELHO
+// 6a. Sem rede, a versão não tem como chegar: aviso legítimo.
 await apagarIdb('modelos', `${ids.modelo}@1`);
+await offline(true);
+await page.close(); page = await ctx.newPage(); ligar(page);
 await page.goto(`${BASE}/inspecao/${A}`);
 await titulo('Checklist indisponível neste aparelho');
 const texto = await page.locator('main').innerText();
-ok('6 modelo ausente: "Checklist indisponível neste aparelho. Conecte-se para sincronizar." sem quebrar', /Conecte-se para sincronizar/.test(texto) && R.erros.length === 0, texto.replace(/\n/g, ' ').slice(0, 140));
+ok('6 modelo ausente sem rede: "Checklist indisponível neste aparelho. Conecte-se para sincronizar." sem quebrar', /Conecte-se para sincronizar/.test(texto) && R.erros.length === 0, texto.replace(/\n/g, ' ').slice(0, 140));
 await tela('07-modelo-ausente');
-await page.waitForTimeout(3000);
-await page.reload();
-await page.getByRole('heading', { name: /Checklist/ }).first().waitFor();
+// 6b. Com rede, o sync busca a versão exata (rota do PR #6) e a inspeção abre, sem o aviso falso no caminho.
+await offline(false);
+await page.close(); page = await ctx.newPage(); ligar(page);
+let viuIndisp = false;
+const vigia = setInterval(async () => { if (await page.getByText('Checklist indisponível').count().catch(() => 0)) viuIndisp = true; }, 100);
+await page.goto(`${BASE}/inspecao/${A}`);
+await titulo('Checklist - Veículo').finally(() => clearInterval(vigia));
 const voltou = (await idb('modelos')).some((m) => m.id === ids.modelo && m.versao === 1);
-if (!voltou) obs('6 depois de sincronizar, a V1 não volta ao aparelho: o catálogo traz só a versão publicada mais recente. Aparelho que perdeu a V1 não continua uma inspeção V1');
+ok('6 modelo ausente com rede: a V1 volta sozinha e a inspeção abre, sem "indisponível" no caminho', voltou && !viuIndisp && (await contador()) === '2 de 5', `voltou=${voltou} · viu indisponível=${viuIndisp} · ${await contador()}`);
+await tela('08-modelo-recuperado');
 
 ok('7 zero erro JS no fluxo', R.erros.length === 0, R.erros.slice(0, 3).join(' | '));
 ok('7 axe sem violações nas telas', Object.values(R.axe).every((v) => v.length === 0), JSON.stringify(Object.fromEntries(Object.entries(R.axe).filter(([, v]) => v.length))));
