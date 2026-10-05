@@ -21,7 +21,7 @@ import { DataHora, Evidencia, Id, Inspecao, Usuario, Veiculo } from "./dominio";
  */
 
 export const LoginEntrada = z.object({
-  email: z.email().transform((e) => e.trim().toLowerCase()),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
   senha: z.string().min(1),
 });
 export type LoginEntrada = z.infer<typeof LoginEntrada>;
@@ -37,8 +37,12 @@ export type LoginSaida = z.infer<typeof LoginSaida>;
 // Sincronização
 // ---------------------------------------------------------------------------
 
+/** Envelope comum: opId (UUID do aparelho) garante idempotência. */
+const Envelope = { opId: Id, criadaEm: DataHora };
+
 /** Cria ou atualiza veículo (cadastro feito no app, inclusive offline). */
 export const OpVeiculoSalvar = z.object({
+  ...Envelope,
   tipo: z.literal("veiculo.salvar"),
   veiculo: Veiculo,
 });
@@ -48,19 +52,19 @@ export const OpVeiculoSalvar = z.object({
  * respondidaEm mais recente) e nunca reabre uma inspeção concluída.
  */
 export const OpInspecaoSalvar = z.object({
+  ...Envelope,
   tipo: z.literal("inspecao.salvar"),
   inspecao: Inspecao,
 });
 
 /** Metadados da foto; o binário vai depois por PUT /evidencias/:id/arquivo. */
 export const OpEvidenciaRegistrar = z.object({
+  ...Envelope,
   tipo: z.literal("evidencia.registrar"),
   evidencia: Evidencia,
 });
 
-export const OperacaoSync = z
-  .discriminatedUnion("tipo", [OpVeiculoSalvar, OpInspecaoSalvar, OpEvidenciaRegistrar])
-  .and(z.object({ opId: Id, criadaEm: DataHora }));
+export const OperacaoSync = z.discriminatedUnion("tipo", [OpVeiculoSalvar, OpInspecaoSalvar, OpEvidenciaRegistrar]);
 export type OperacaoSync = z.infer<typeof OperacaoSync>;
 
 export const SyncEntrada = z.object({
