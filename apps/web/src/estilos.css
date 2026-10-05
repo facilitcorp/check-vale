@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de marca (mockup CheckVale). Componentes usam SÓ estes nomes
+ * (bg-marca, text-destaque...). Trocar a identidade = trocar aqui.
+ */
+@theme {
+  --color-marca: #0e5b45;
+  --color-marca-escura: #0a4635;
+  --color-marca-clara: #e7f2ee;
+  --color-destaque: #f2b705;
+  --color-fundo: #f4f6f5;
+  --color-superficie: #ffffff;
+  --color-texto: #14211c;
+  --color-texto-suave: #5b6670;
+  --color-borda: #dde3e0;
+  --color-ok: #1f9d55;
+  --color-atencao: #f2a705;
+  --color-erro: #d93025;
+  --color-neutro: #8a949c;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body, #root { height: 100%; }
+body { @apply bg-fundo text-texto antialiased; -webkit-tap-highlight-color: transparent; }
