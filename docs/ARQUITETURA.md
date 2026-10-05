@@ -16,6 +16,10 @@ Monorepo com npm workspaces. Node 22, TypeScript estrito.
 1. **Offline-first.** O app grava tudo no aparelho e empilha operações numa fila. Sincroniza quando há rede (evento `online`, a cada 30 s e logo após cada gravação). Só o primeiro login exige internet.
 2. **Ids gerados no aparelho (UUID).** A inspeção existe antes de chegar ao servidor.
 3. **Sync idempotente.** Toda operação tem `opId`; o servidor registra em `sync_ops` e responde `duplicada` em reenvios. Reenviar é sempre seguro.
+3b. **Fila sem perda em concorrência** (`dados/sincronizacao.ts`, testes em `dados/concorrencia.test.ts`):
+   - ler o lote e marcá-lo "enviando" acontece numa única transação, então uma gravação nova não troca uma linha que já está subindo;
+   - gravação feita durante o envio vira operação nova (pendente) e sobe na mesma rodada;
+   - a confirmação do servidor só apaga a linha se o `opId` ainda for o enviado; se a linha mudou, ela volta para pendente.
 4. **Merge por item.** Para cada item vale a resposta com `respondidaEm` mais recente. Inspeção concluída nunca é reaberta.
 5. **Uma só regra de resultado.** `calcularResultado` (shared) roda no app (telas offline) e na API (índice gravado e PDF). Os números são sempre iguais.
 6. **Checklist é configuração.** Modelos versionados (`id`+`versao`) com filtros por tipo de veículo, área e atividade; `escolherModelo` pega o mais específico. Inspeção guarda a versão usada — alterar o modelo não altera o passado.

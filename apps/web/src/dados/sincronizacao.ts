@@ -39,21 +39,33 @@ const LOTE = 50;
 async function enviarFila(): Promise<void> {
   const dispositivoId = await idDispositivo();
   for (;;) {
-    const lote = await banco.fila.where("estado").equals("pendente").sortBy("seq").then((l) => l.slice(0, LOTE));
+    // Ler e marcar "enviando" na MESMA transação: enfileirar() não consegue trocar o
+    // conteúdo de uma linha entre o momento em que ela é lida e o momento em que sobe.
+    const lote = await banco.transaction("rw", banco.fila, async () => {
+      const l = (await banco.fila.where("estado").equals("pendente").sortBy("seq")).slice(0, LOTE);
+      await banco.fila.where("seq").anyOf(l.map((o) => o.seq!)).modify({ estado: "enviando" });
+      return l;
+    });
     if (lote.length === 0) return;
     const seqs = lote.map((o) => o.seq!);
-    await banco.fila.where("seq").anyOf(seqs).modify({ estado: "enviando" });
     let saida: SyncSaida;
     try {
       saida = await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: lote.map((o) => o.op) }) });
     } catch (e) {
       // Volta para pendente com o MESMO opId: reenviar é seguro (idempotente no servidor).
-      await banco.fila.where("seq").anyOf(seqs).modify({ estado: "pendente" });
+      await banco.fila.where("seq").anyOf(seqs).and((o) => o.estado === "enviando").modify({ estado: "pendente" });
       throw e;
     }
     const porOp = new Map(saida.resultados.map((r) => [r.opId, r]));
     await banco.transaction("rw", banco.fila, async () => {
       for (const o of lote) {
+        // A confirmação só vale para a operação que foi enviada. Se a linha agora guarda
+        // outra (opId diferente), ela é mais nova: fica na fila para o próximo envio.
+        const atual = await banco.fila.get(o.seq!);
+        if (!atual || atual.op.opId !== o.op.opId) {
+          if (atual?.estado === "enviando") await banco.fila.update(o.seq!, { estado: "pendente" });
+          continue;
+        }
         const r = porOp.get(o.op.opId);
         if (!r) await banco.fila.update(o.seq!, { estado: "pendente" });
         else if (r.status === "rejeitada") await banco.fila.update(o.seq!, { estado: "rejeitada", erro: r.erro });
