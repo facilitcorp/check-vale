@@ -21,3 +21,24 @@ A saída é um JSON com PASSOU/FALHOU por passo e os ids criados.
 O script precisa de um banco zerado: rodar de novo no mesmo banco falha por código e placa repetidos.
 
 Resultado em `9b16340`: 34 de 36 verificações passaram. As 2 que falharam (marca DEMO em cadastro do Admin) foram aceitas para depois do MVP.
+
+## Parte 2 — Inspetor + offline (lado do servidor)
+
+Depois do fluxo visual, **pare a API** (o PGlite aceita um processo só) e rode, com o mesmo banco:
+
+```bash
+DATA_DIR=<o mesmo da API> UPLOADS_DIR=<o mesmo da API> npx tsx qa/verifica-inspecao.mts
+```
+
+Para cada inspeção sincronizada, o script confere:
+- veículo e versão publicada;
+- nenhuma resposta em item fora da regra (usa o retrato do veículo gravado na inspeção);
+- resultado gravado no servidor igual ao recalculado com as funções do app;
+- cada NC com descrição, criticidade e foto, e presente no plano de ação;
+- cada foto ligada ao item certo, com arquivo no disco, em JPEG de até 400 KB (prova a compressão).
+
+No geral, confere também:
+- fila de sync sem nenhuma operação rejeitada;
+- cada operação aplicada uma única vez (auditoria `sync.*` = `sync_ops`).
+
+O script também imprime a contagem da auditoria.
