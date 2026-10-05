@@ -42,3 +42,16 @@ No geral, confere também:
 - cada operação aplicada uma única vez (auditoria `sync.*` = `sync_ops`).
 
 O script também imprime a contagem da auditoria.
+
+## Parte 3 — Versões, retrato e recusa (lado do servidor)
+
+Com a API no ar e depois do `aceite-admin.mjs`: `node qa/aceite-versoes-sync.mjs`. O script:
+- abre uma inspeção na V1;
+- publica a V2 (com um item alterado e um item novo) e depois a V3 (com um item removido);
+- altera o veículo;
+- confere que a inspeção antiga mantém a V1, o retrato do veículo e as respostas, e que conclui normalmente;
+- confere que a inspeção nova recebe a V2;
+- confere que um item da V2 numa inspeção da V1 é recusado;
+- confere que a placa duplicada é recusada com o motivo.
+
+Depois, o `verifica-inspecao.mts` deve mostrar exatamente 2 operações rejeitadas: as duas foram provocadas de propósito.
