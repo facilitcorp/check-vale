@@ -57,7 +57,7 @@ export function SelecionarVeiculo() {
               role="tab"
               aria-selected={tipo === t.id}
               onClick={() => setTipo(t.id)}
-              className={`h-9 shrink-0 rounded-lg px-4 text-sm font-medium ${tipo === t.id ? "bg-marca text-white" : "bg-fundo text-texto-suave"}`}
+              className={`h-11 shrink-0 rounded-lg px-4 text-sm font-medium ${tipo === t.id ? "bg-marca text-white" : "bg-fundo text-texto-suave"}`}
             >
               {t.nome}
             </button>

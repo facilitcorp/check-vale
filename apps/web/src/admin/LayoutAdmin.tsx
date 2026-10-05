@@ -23,18 +23,18 @@ export function LayoutAdmin() {
           <span className="rounded bg-white/15 px-2 py-0.5 text-xs font-semibold">ADMIN</span>
           <nav className="ml-2 hidden gap-1 md:flex">
             {MENU.map((m) => (
-              <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-white/20" : "hover:bg-white/10"}`}>
+              <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex items-center gap-1.5 min-h-11 rounded-lg px-3 text-sm ${isActive ? "bg-white/20" : "hover:bg-white/10"}`}>
                 <m.icone size={16} /> {m.rotulo}
               </NavLink>
             ))}
           </nav>
           <div className="flex-1" />
-          <NavLink to="/" className="flex items-center gap-1 rounded-lg px-2 py-2 text-sm hover:bg-white/10" title="App do inspetor"><Smartphone size={16} /><span className="hidden sm:inline">App</span></NavLink>
-          <button aria-label="Sair" onClick={() => void sair()} className="rounded-lg p-2 hover:bg-white/10"><LogOut size={18} /></button>
+          <NavLink to="/" className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-sm hover:bg-white/10" title="App do inspetor"><Smartphone size={16} /><span className="hidden sm:inline">App</span></NavLink>
+          <button aria-label="Sair" onClick={() => void sair()} className="flex size-11 items-center justify-center rounded-lg hover:bg-white/10"><LogOut size={18} /></button>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:hidden">
           {MENU.map((m) => (
-            <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-white/20" : ""}`}>
+            <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex shrink-0 items-center gap-1.5 min-h-11 rounded-lg px-3 text-sm ${isActive ? "bg-white/20" : ""}`}>
               <m.icone size={16} /> {m.rotulo}
             </NavLink>
           ))}

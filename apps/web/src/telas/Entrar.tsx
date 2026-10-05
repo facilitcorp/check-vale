@@ -44,7 +44,7 @@ export function Entrar() {
           <Rotulo htmlFor="senha">Senha</Rotulo>
           <div className="relative">
             <Campo id="senha" type={ver ? "text" : "password"} autoComplete="current-password" placeholder="Digite sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} className="pr-12" required />
-            <button type="button" aria-label={ver ? "Ocultar senha" : "Mostrar senha"} onClick={() => setVer(!ver)} className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-texto-suave">
+            <button type="button" aria-label={ver ? "Ocultar senha" : "Mostrar senha"} onClick={() => setVer(!ver)} className="absolute right-0.5 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-texto-suave">
               {ver ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>

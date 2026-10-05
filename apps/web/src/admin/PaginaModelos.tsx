@@ -60,7 +60,7 @@ export function PaginaModelos() {
           <ul className="mt-2 divide-y divide-borda">
             {m.versoes.map((v) => (
               <li key={v.versao}>
-                <Link to={`/admin/modelos/${m.id}/v/${v.versao}`} className="flex items-center gap-3 py-2 hover:bg-fundo">
+                <Link to={`/admin/modelos/${m.id}/v/${v.versao}`} className="flex min-h-11 items-center gap-3 py-2 hover:bg-fundo">
                   <span className="w-12 font-mono text-sm">v{v.versao}</span>
                   <Selo tom={STATUS[v.status].tom}>{STATUS[v.status].rotulo}</Selo>
                   <span className="flex-1 text-sm text-texto-suave">{v.itens} itens{v.publicadaEm ? ` · publicada em ${new Date(v.publicadaEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : ""}</span>

@@ -9,19 +9,29 @@ import { MARCA } from "../marca";
  * Cores só por token (bg-marca, text-texto-suave...). Ver estilos.css.
  */
 
+/** Logotipo em SVG (marca é imagem: nome acessível único, sem cálculo de contraste de texto). */
 export function Logo({ claro = false, tamanho = "md" }: { claro?: boolean; tamanho?: "md" | "lg" | "xl" }) {
-  const t = { md: "text-lg", lg: "text-3xl", xl: "text-5xl" }[tamanho];
-  const i = { md: 22, lg: 40, xl: 64 }[tamanho];
+  const fonte = { md: 18, lg: 30, xl: 48 }[tamanho];
   const corte = MARCA.nome.endsWith(MARCA.nomeDestaque) ? MARCA.nome.length - MARCA.nomeDestaque.length : MARCA.nome.length;
-  const [check, resto] = [MARCA.nome.slice(0, corte), MARCA.nome.slice(corte)];
+  const [inicio, destaque] = [MARCA.nome.slice(0, corte), MARCA.nome.slice(corte)];
+  const icone = fonte * 1.25;
+  const largura = icone + fonte * 0.3 + MARCA.nome.length * fonte * 0.6;
   return (
-    <span className={`inline-flex items-center gap-1.5 font-bold tracking-tight ${t}`}>
-      <svg width={i} height={i} viewBox="0 0 64 64" aria-hidden>
-        <path d="M10 34l14 14 30-34" fill="none" stroke={claro ? "#fff" : "var(--color-marca)"} strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className={claro ? "text-white" : "text-marca"}>{check}</span>
-      <span className="text-destaque -ml-1.5">{resto}</span>
-    </span>
+    <svg role="img" aria-label={MARCA.nome} height={fonte * 1.4} viewBox={`0 0 ${largura} ${fonte * 1.4}`} className="inline-block">
+      <path
+        transform={`translate(0 ${fonte * 0.08}) scale(${icone / 64})`}
+        d="M10 34l14 14 30-34"
+        fill="none"
+        stroke={claro ? "#fff" : "var(--color-marca)"}
+        strokeWidth="9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <text x={icone + fonte * 0.3} y={fonte * 1.08} fontSize={fonte} fontWeight={700} fontFamily="var(--font-sans)" letterSpacing="-0.02em">
+        <tspan fill={claro ? "#fff" : "var(--color-marca)"}>{inicio}</tspan>
+        <tspan fill="var(--color-destaque)">{destaque}</tspan>
+      </text>
+    </svg>
   );
 }
 
@@ -54,7 +64,7 @@ export function Cabecalho({ voltar = true, direita }: { voltar?: boolean | strin
           {voltar && (
             <button
               aria-label="Voltar"
-              className="-ml-1 rounded-full p-2 active:bg-white/10"
+              className="-ml-1 flex size-11 items-center justify-center rounded-full active:bg-white/10"
               onClick={() => (typeof voltar === "string" ? navegar(voltar) : navegar(-1))}
             >
               <ArrowLeft size={22} />

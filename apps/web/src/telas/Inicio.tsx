@@ -26,7 +26,7 @@ export function Inicio() {
       <Cabecalho
         voltar={false}
         direita={
-          <button aria-label="Sair" onClick={() => void sair()} className="rounded-full p-2 active:bg-white/10">
+          <button aria-label="Sair" onClick={() => void sair()} className="flex size-11 items-center justify-center rounded-full active:bg-white/10">
             <LogOut size={20} />
           </button>
         }

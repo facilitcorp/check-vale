@@ -13,7 +13,7 @@ export type Opcao = { valor: string; rotulo: string };
 export type CampoForm<T> =
   | { tipo: "texto" | "numero"; nome: keyof T & string; rotulo: string; obrigatorio?: boolean; ajuda?: string; somenteNaCriacao?: boolean }
   | { tipo: "booleano"; nome: keyof T & string; rotulo: string }
-  | { tipo: "selecao"; nome: keyof T & string; rotulo: string; opcoes: Opcao[]; vazio?: string; somenteNaCriacao?: boolean }
+  | { tipo: "selecao"; nome: keyof T & string; rotulo: string; opcoes: Opcao[]; vazio?: string; somenteNaCriacao?: boolean; obrigatorio?: boolean }
   | { tipo: "multipla"; nome: keyof T & string; rotulo: string; opcoes: Opcao[]; ajuda?: string }
   | { tipo: "lista"; nome: keyof T & string; rotulo: string; ajuda?: string }
   | { tipo: "custom"; nome: string; render: (valor: T, mudar: (parcial: Partial<T>) => void) => ReactNode };
@@ -39,7 +39,7 @@ export function MultiplaEscolha({ opcoes, valor, onChange, vazio = "Todos" }: { 
             key={o.valor}
             aria-pressed={marcado}
             onClick={() => onChange(marcado ? valor.filter((x) => x !== o.valor) : [...valor, o.valor])}
-            className={`min-h-9 rounded-full border px-3 text-sm ${marcado ? "border-marca bg-marca text-white" : "border-borda bg-superficie text-texto"}`}
+            className={`min-h-11 rounded-full border px-3 text-sm ${marcado ? "border-marca bg-marca text-white" : "border-borda bg-superficie text-texto"}`}
           >
             {o.rotulo}
           </button>
@@ -75,6 +75,8 @@ export function Cadastro<T extends { id: string }>({
   async function salvar(ev: FormEvent) {
     ev.preventDefault();
     if (!edicao) return;
+    const faltando = campos.filter((c) => "obrigatorio" in c && c.obrigatorio && !(edicao.valor as Record<string, unknown>)[c.nome]).map((c) => ("rotulo" in c ? c.rotulo.replace(" *", "") : c.nome));
+    if (faltando.length) return setFalha({ mensagem: `Preencha: ${faltando.join(", ")}.`, erros: [] });
     setSalvando(true);
     setFalha(null);
     try {
@@ -103,7 +105,7 @@ export function Cadastro<T extends { id: string }>({
             <input type="checkbox" checked={verInativos} onChange={(e) => setVerInativos(e.target.checked)} /> Mostrar inativos
           </label>
         )}
-        <Botao className="!h-10 !w-auto" onClick={() => (setFalha(null), setEdicao({ valor: novo() as Partial<T>, id: null }))}>
+        <Botao className="!h-11 !w-auto" onClick={() => (setFalha(null), setEdicao({ valor: novo() as Partial<T>, id: null }))}>
           <span className="inline-flex items-center gap-1"><Plus size={18} /> Novo</span>
         </Botao>
       </div>
@@ -123,7 +125,7 @@ export function Cadastro<T extends { id: string }>({
               <tr key={v.id} className={filtroAtivo && !filtroAtivo(v) ? "opacity-50" : ""}>
                 {colunas.map((c) => <td key={c.titulo} className="px-2 py-2 align-top">{c.render(v)}</td>)}
                 <td className="px-2 py-1 text-right">
-                  <button aria-label="Editar" className="rounded p-2 text-marca hover:bg-marca-clara" onClick={() => (setFalha(null), setEdicao({ valor: { ...v }, id: v.id }))}>
+                  <button aria-label="Editar" className="inline-flex size-11 items-center justify-center rounded text-marca hover:bg-marca-clara" onClick={() => (setFalha(null), setEdicao({ valor: { ...v }, id: v.id }))}>
                     <Pencil size={16} />
                   </button>
                 </td>
@@ -146,7 +148,7 @@ export function Cadastro<T extends { id: string }>({
           >
             <div className="flex items-center border-b border-borda px-5 py-3">
               <h3 className="flex-1 text-lg font-bold">{edicao.id ? "Editar" : "Novo"} — {titulo}</h3>
-              <button type="button" aria-label="Fechar" onClick={() => setEdicao(null)} className="rounded p-2 hover:bg-fundo"><X size={20} /></button>
+              <button type="button" aria-label="Fechar" onClick={() => setEdicao(null)} className="flex size-11 items-center justify-center rounded hover:bg-fundo"><X size={20} /></button>
             </div>
             <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
               {campos.map((c) => <CampoEdicao key={c.nome} campo={c} valor={edicao.valor as T} mudar={mudar} criando={!edicao.id} />)}
@@ -183,7 +185,7 @@ function CampoEdicao<T>({ campo: c, valor, mudar, criando }: { campo: CampoForm<
     case "selecao":
       return (
         <div>
-          <Rotulo htmlFor={id}>{c.rotulo}</Rotulo>
+          <Rotulo htmlFor={id}>{c.rotulo}{c.obrigatorio ? " *" : ""}</Rotulo>
           <Selecao id={id} value={(atual as string | null) ?? ""} disabled={bloqueado} onChange={(e) => set(e.target.value || null)}>
             <option value="">{c.vazio ?? "Selecione"}</option>
             {c.opcoes.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}

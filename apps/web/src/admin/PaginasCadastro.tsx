@@ -71,7 +71,7 @@ export function PaginaFrota() {
           { titulo: "Status", render: (v) => ativoSelo(v.status === "ativo") },
         ]}
         campos={[
-          { tipo: "selecao", nome: "tipoVeiculoId", rotulo: "Tipo de veículo *", opcoes: opTipos },
+          { tipo: "selecao", nome: "tipoVeiculoId", rotulo: "Tipo de veículo", opcoes: opTipos, obrigatorio: true },
           { tipo: "texto", nome: "placa", rotulo: "Placa", ajuda: "Placa ou código interno: pelo menos um." },
           { tipo: "texto", nome: "codigo", rotulo: "Código interno" },
           { tipo: "texto", nome: "fabricante", rotulo: "Fabricante" },
