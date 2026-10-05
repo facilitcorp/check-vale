@@ -141,6 +141,6 @@ export function Selecao({ icone, children, ...p }: SelectHTMLAttributes<HTMLSele
 }
 
 export function Aviso({ tom = "info", children }: { tom?: "info" | "erro"; children: ReactNode }) {
-  const c = tom === "erro" ? "border-erro/30 bg-erro/5 text-erro" : "border-marca/20 bg-marca-clara text-texto-suave";
+  const c = tom === "erro" ? "border-erro/30 bg-erro/5 text-erro-forte" : "border-marca/20 bg-marca-clara text-texto-suave";
   return <div className={`rounded-lg border px-4 py-3 text-sm ${c}`} role={tom === "erro" ? "alert" : undefined}>{children}</div>;
 }

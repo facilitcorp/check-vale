@@ -38,6 +38,10 @@ const LOTE = 50;
 
 async function enviarFila(): Promise<void> {
   const dispositivoId = await idDispositivo();
+  // Nesta aba só há um envio por vez (sincronizar), então uma linha "enviando" aqui é órfã:
+  // o envio dela morreu com a página (app fechado, recarga). Volta para a fila com o MESMO
+  // opId; se outra aba ainda a estiver enviando, o servidor responde "duplicada".
+  await banco.fila.where("estado").equals("enviando").modify({ estado: "pendente" });
   for (;;) {
     // Ler e marcar "enviando" na MESMA transação: enfileirar() não consegue trocar o
     // conteúdo de uma linha entre o momento em que ela é lida e o momento em que sobe.
