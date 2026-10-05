@@ -7,6 +7,10 @@ RAIZ=$(cd "$(dirname "$0")/../.." && pwd); cd "$RAIZ"
 PORTA_API=${PORTA_API:-3100}; PORTA_WEB=${PORTA_WEB:-5199}
 export API="http://localhost:$PORTA_API/api" WEB="http://localhost:$PORTA_WEB"
 export SAIDA=${SAIDA:-$RAIZ/qa/tela/saida}; mkdir -p "$SAIDA"; rm -f "$SAIDA"/*.log "$SAIDA"/*.json
+# Porta ocupada (API ou preview de uma rodada anterior) faz o roteiro falar com o banco errado e falhar sem pista.
+for porta in "$PORTA_API" "$PORTA_WEB"; do
+  if (exec 3<>"/dev/tcp/127.0.0.1/$porta") 2>/dev/null; then echo "Porta $porta ocupada: encerre o processo que a usa (ou mude PORTA_API/PORTA_WEB)."; exit 2; fi
+done
 export DATA_DIR=$(mktemp -d) UPLOADS_DIR=$(mktemp -d)
 echo "banco: $DATA_DIR  uploads: $UPLOADS_DIR  saída: $SAIDA"
 
