@@ -55,3 +55,30 @@ Com a API no ar e depois do `aceite-admin.mjs`: `node qa/aceite-versoes-sync.mjs
 - confere que a placa duplicada é recusada com o motivo.
 
 Depois, o `verifica-inspecao.mts` deve mostrar exatamente 2 operações rejeitadas: as duas foram provocadas de propósito.
+
+## Roteiros de tela (Partes 2 e 3, aparelho novo, axe do Admin)
+
+Ficam em `qa/tela/`, num pacote próprio (Playwright e axe), fora dos workspaces e do build. A cadeia inteira, com banco zerado, roda com um comando só:
+
+```bash
+npm ci && npm run build
+bash qa/tela/rodar-tudo.sh   # PORTA_API=3100 PORTA_WEB=5199 SAIDA=qa/tela/saida por padrão
+```
+
+O `rodar-tudo.sh` sobe a API (banco e uploads em pastas temporárias) e o `vite preview` do app. Instala o Playwright em `qa/tela/` se faltar e gera as fotos de teste (`gerar-fotos.mjs`: JPEG com cara de foto, acima de 1 MB). Depois roda, nesta ordem:
+
+| Passo | Script | O que prova |
+|---|---|---|
+| Parte 1 | `qa/aceite-admin.mjs` | Admin pela API; os ids vão para `saida/aceite-admin.json` |
+| Parte 2, tela | `qa/tela/parte2.mjs` | inspetor no celular, online e offline, fotos comprimidas, estados de sync, axe |
+| Parte 2, servidor | `qa/verifica-inspecao.mts` | com a API parada, confere no banco o que a tela gravou |
+| Parte 3, tela | `qa/tela/parte3.mjs` | V1 continua após V2/V3, retrato do veículo, recusa de placa duplicada, axe |
+| Aparelho novo | `qa/tela/aparelho-novo.mjs` | IndexedDB vazio: todo cartão abre na versão da inspeção, sem "indisponível" |
+| axe do Admin | `qa/tela/axe-admin.mjs` | WCAG 2.1 AA em 7 telas × desktop e celular, 0 erro de console |
+| Parte 3, servidor | `qa/aceite-versoes-sync.mjs` | num **segundo** banco zerado, porque publica V2/V3 no mesmo modelo da Parte 3 de tela |
+
+No fim, ele imprime o resumo por parte e sai com 1 se algo falhou. Capturas, JSONs e logs ficam em `qa/tela/saida/`, que está no `.gitignore`.
+
+Cada script também roda sozinho, com a API e o app no ar: `WEB`, `API`, `SAIDA`, `IDS_ADMIN` e, na Parte 2, `UPLOADS_DIR`, a mesma pasta de uploads da API.
+
+As esperas são por estado, não por tempo. Um cartão em "Carregando…" não é lido como resultado: era isso que dava o falso ✘ da 1ª rodada.
