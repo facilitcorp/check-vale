@@ -26,7 +26,7 @@ do que duplica a fundação. Executar SOMENTE depois que `origin/feat/nucleo-con
 | Caminho aqui | Substituído por (fundação) |
 |---|---|
 | `src/contracts/checklist.ts` | tipos do pacote `shared` |
-| `src/infra/offline/banco.ts`, `fila.ts`, `imagem.ts` | banco local, fila e compressão dentro de `adicionarEvidencia` |
+| `src/infra/offline/banco.ts`, `fila.ts` (inclui o contador de revisão), `imagem.ts` | banco local, fila (concorrência coberta por `opId` + lote marcado "enviando", teste em `dados/concorrencia.test.ts`, 085214b) e compressão dentro de `adicionarEvidencia` |
 | `src/features/inspecao/dados/repositorio.ts` | `repositorioInspecao` |
 | `src/features/inspecao/dominio/resultado.ts` | cálculo compartilhado (app = API = PDF) |
 | `src/features/inspecao/dados/ganchos.ts` | `useChecklistDaInspecao` real (`dados/ganchos.ts`) |
