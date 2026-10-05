@@ -1,4 +1,4 @@
-import type { Catalogo, Inspecao, SyncSaida, Veiculo } from "@checkvale/shared";
+import type { Catalogo, Inspecao, ModeloChecklist, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
 import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
 import { aoEnfileirar, contarPendentes } from "./fila";
@@ -7,7 +7,8 @@ import { aoEnfileirar, contarPendentes } from "./fila";
  * Motor de sincronização. Ordem de cada rodada:
  *  1. envia a fila (FIFO) em lotes para /sync;
  *  2. sobe os binários das fotos já registradas;
- *  3. baixa catálogo (ETag) e veículos/inspeções alterados desde o último cursor.
+ *  3. baixa catálogo (ETag) e veículos/inspeções alterados desde o último cursor;
+ *  4. baixa a versão de modelo de cada inspeção que ainda não está no aparelho.
  * Sem rede, para no primeiro passo e tenta na próxima rodada.
  */
 
@@ -119,6 +120,27 @@ async function baixar(): Promise<void> {
   await gravarMeta("cursor:inspecoes", i.servidorEm);
 }
 
+/**
+ * O catálogo só traz a versão publicada mais recente. Num aparelho novo (ou que ficou
+ * parado enquanto o admin publicava), a inspeção aberta numa versão anterior chega
+ * sem o modelo dela e não abre: busca aqui cada versão que falta.
+ */
+async function baixarVersoesDasInspecoes(): Promise<void> {
+  const precisa = new Map<string, { id: string; versao: number }>();
+  for (const i of await banco.inspecoes.toArray()) precisa.set(chaveModelo(i.modeloId, i.modeloVersao), { id: i.modeloId, versao: i.modeloVersao });
+  const temos = new Set((await banco.modelos.toCollection().primaryKeys()) as string[]);
+  for (const [chave, m] of precisa) {
+    if (temos.has(chave)) continue;
+    try {
+      const modelo = await chamarApi<ModeloChecklist>(`/modelos/${m.id}/versoes/${m.versao}`);
+      await banco.modelos.put({ ...modelo, chave });
+    } catch (e) {
+      if (e instanceof ErroDaApi && e.status === 404) continue; // não existe no servidor: não trava as outras
+      throw e;
+    }
+  }
+}
+
 let rodando: Promise<void> | null = null;
 let deNovo = false;
 
@@ -136,6 +158,7 @@ export function sincronizar(): Promise<void> {
         await enviarFila();
         await enviarFotos();
         await baixar();
+        await baixarVersoesDasInspecoes();
       } while (deNovo);
       publicar({ online: true, ultimaEm: new Date().toISOString() });
     } catch (e) {

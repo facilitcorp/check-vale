@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
-import type { Catalogo } from "@checkvale/shared";
+import { z } from "zod";
+import { Id, type Catalogo, type ModeloChecklist } from "@checkvale/shared";
+import { ErroHttp } from "../app";
 import { areaDeLinha, atividadeDeLinha, atributoDeLinha, modeloDeLinha, tipoDeLinha, unidadeDeLinha } from "../mapeamento";
 
 export const rotasCatalogo: FastifyPluginAsync = async (app) => {
@@ -27,4 +29,15 @@ export const rotasCatalogo: FastifyPluginAsync = async (app) => {
     if (req.headers["if-none-match"] === `"${versao}"`) return rep.status(304).send();
     return { versao, ...corpo } satisfies Catalogo;
   });
+
+  // Versão exata de um modelo, para o aparelho que recebeu uma inspeção aberta numa versão
+  // que o catálogo já não traz (o catálogo só tem a publicada mais recente). Rascunho não sai daqui.
+  app.get("/modelos/:id/versoes/:v", async (req): Promise<ModeloChecklist> => {
+    const { id, v } = VersaoParam.parse(req.params);
+    const { rows } = await app.db.query(`SELECT * FROM modelos_checklist WHERE id = $1 AND versao = $2 AND status <> 'rascunho'`, [id, v]);
+    if (!rows[0]) throw new ErroHttp(404, "nao_encontrado", "Versão de modelo não encontrada.");
+    return modeloDeLinha(rows[0]);
+  });
 };
+
+const VersaoParam = z.object({ id: Id, v: z.coerce.number().int().positive() });

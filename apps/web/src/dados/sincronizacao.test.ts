@@ -107,4 +107,30 @@ describe("versões de modelo no aparelho", () => {
     }
     expect((await b.modelos.toArray()).map((m) => m.versao).sort()).toEqual([1, 2]);
   });
+
+  it("aparelho novo: inspeção aberta numa versão que saiu do catálogo baixa a versão dela", async () => {
+    const modeloId = uid();
+    const modelo = (versao: number) => ({ id: modeloId, nome: "M", versao, aplicavel: { tipoVeiculoIds: [], areaIds: [], atividadeIds: [], atributos: [] }, categorias: [] });
+    // A inspeção nasceu em outro aparelho, na v1; o admin já publicou a v2.
+    const inspecao = await repositorioInspecao.criar({ ...ctx, modeloId, modeloVersao: 1 });
+    await Promise.all(banco.tables.map((t) => t.clear()));
+    const pedidas: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const json = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
+      if (url.startsWith("/api/catalogo")) return json({ versao: "2", unidades: [], areas: [], atividades: [], tiposVeiculo: [], atributos: [], modelos: [modelo(2)] });
+      if (url.startsWith("/api/veiculos")) return json({ veiculos: [], servidorEm: new Date().toISOString() });
+      if (url.startsWith("/api/inspecoes")) return json({ inspecoes: [inspecao], servidorEm: new Date().toISOString() });
+      if (url.startsWith("/api/modelos/")) {
+        pedidas.push(url);
+        return url === `/api/modelos/${modeloId}/versoes/1` ? json(modelo(1)) : new Response("{}", { status: 404 });
+      }
+      return new Response("{}", { status: 404 });
+    }));
+    await sincronizar();
+    expect(await banco.modelos.get(`${modeloId}@1`)).toMatchObject({ versao: 1 });
+    expect(pedidas).toEqual([`/api/modelos/${modeloId}/versoes/1`]);
+    await sincronizar(); // já está no aparelho: não pede de novo
+    expect(pedidas).toHaveLength(1);
+  });
 });
+

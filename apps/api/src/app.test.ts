@@ -266,6 +266,14 @@ describe("núcleo configurável (admin)", () => {
     expect(lista.find((m: { id: string }) => m.id === criado.id).versoes.map((v: { status: string }) => v.status)).toEqual(["publicada", "arquivada"]);
     cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
     expect(cat.modelos.find((m) => m.id === criado.id)?.versao).toBe(2);
+
+    // O inspetor busca uma versão exata (aparelho novo com inspeção na v1); rascunho não sai.
+    const v1 = await app.inject({ method: "GET", url: `/api/modelos/${criado.id}/versoes/1`, headers: auth() });
+    expect(v1.statusCode, v1.body).toBe(200);
+    expect(v1.json()).toMatchObject({ id: criado.id, versao: 1 });
+    expect((await req("POST", `/api/admin/modelos/${criado.id}/rascunho`)).json()).toMatchObject({ versao: 3, status: "rascunho" });
+    expect((await app.inject({ method: "GET", url: `/api/modelos/${criado.id}/versoes/3`, headers: auth() })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/api/modelos/${criado.id}/versoes/1` })).statusCode).toBe(401);
   });
 
   it("usuários: admin cria inspetor que consegue entrar; não pode se auto-desativar", async () => {
