@@ -107,4 +107,25 @@ describe("versões de modelo no aparelho", () => {
     }
     expect((await b.modelos.toArray()).map((m) => m.versao).sort()).toEqual([1, 2]);
   });
+
+  it("aparelho novo baixa a versão exata da inspeção, mesmo que o catálogo já esteja na v2", async () => {
+    const modelo = (versao: number) => ({ id: ctx.modeloId, nome: "M", versao, aplicavel: { tipoVeiculoIds: [], areaIds: [], atividadeIds: [], atributos: [] }, categorias: [] });
+    const doServidor = { ...ctx, id: uid(), status: "em_andamento", respostas: [], iniciadaEm: new Date().toISOString() };
+    const pedidos: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      pedidos.push(url);
+      const json = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
+      if (url === `/api/catalogo/modelos/${ctx.modeloId}/versoes/1`) return json(modelo(1));
+      if (url.startsWith("/api/catalogo")) return json({ versao: "2", unidades: [], areas: [], atividades: [], tiposVeiculo: [], atributos: [], modelos: [modelo(2)] });
+      if (url.startsWith("/api/veiculos")) return json({ veiculos: [], servidorEm: new Date().toISOString() });
+      if (url.startsWith("/api/inspecoes")) return json({ inspecoes: [doServidor], servidorEm: new Date().toISOString() });
+      return new Response("{}", { status: 404 });
+    }));
+    await sincronizar();
+    expect((await banco.modelos.toArray()).map((m) => m.chave).sort()).toEqual([`${ctx.modeloId}@1`, `${ctx.modeloId}@2`].sort());
+    // Já guardada: a próxima rodada não pede de novo.
+    pedidos.length = 0;
+    await sincronizar();
+    expect(pedidos.filter((u) => u.includes("/versoes/"))).toEqual([]);
+  });
 });
