@@ -3,73 +3,55 @@
  * inspeção (telas 5–12) enquanto a fundação (login, operação, veículo, API e
  * transporte HTTP) não chega. Na integração, este arquivo é substituído.
  */
-import { StrictMode } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { BancoLocal } from '@/infra/offline/banco';
 import { FilaSincronizacao, type TransporteSync } from '@/infra/offline/fila';
 import { aplicarMarca, MARCA_PADRAO } from '@/infra/branding/marca';
 import { ProvedorInspecao, rotasDaInspecao, rotasInspecao, useInspecao } from '@/features/inspecao';
 import { MODELO_EXEMPLO } from '@/features/inspecao/dados/modelo-exemplo';
-import { Moldura } from '@/features/inspecao/componentes/Moldura';
 import './estilos.css';
 
-/** Sem API ainda: finge que enviou, com uma pequena espera. */
+/** Sem API ainda: finge que enviou. `?falhar=1` na URL simula o servidor recusando (QA). */
 const transporteDeMentira: TransporteSync = {
-  enviar: () => new Promise((ok) => setTimeout(ok, 300)),
+  enviar: () =>
+    new Promise((ok, falha) =>
+      setTimeout(() => (localStorage.getItem('qa-falhar') === '1' ? falha(new Error('HTTP 500')) : ok()), 300),
+    ),
 };
+if (new URLSearchParams(location.search).has('falhar')) localStorage.setItem('qa-falhar', new URLSearchParams(location.search).get('falhar')!);
 
 const banco = new BancoLocal();
 const fila = new FilaSincronizacao(banco, transporteDeMentira);
 fila.iniciarAutomatico();
 aplicarMarca(MARCA_PADRAO);
 
-function InicioProvisorio() {
-  const { repo, banco } = useInspecao();
+/** Provisório: a fundação leva para operação → veículo. Aqui cria uma inspeção DEMO. */
+function NovaVerificacaoProvisoria() {
+  const { repo } = useInspecao();
   const navegar = useNavigate();
-  const lista = useLiveQuery(() => banco.verificacoes.orderBy('iniciadaEm').reverse().toArray(), [banco]) ?? [];
-
-  const nova = async () => {
-    await repo.guardarModelo(MODELO_EXEMPLO);
-    const v = await repo.iniciar({
-      operacao: {
-        unidadeId: 'carajas', unidadeNome: 'Complexo Carajás (PA)', areaId: 'operacional', areaNome: 'Área operacional',
-        atividadeId: 'transporte-pessoas', atividadeNome: 'Transporte de pessoas',
-      },
-      veiculo: {
-        id: 'demo-1', placa: 'OWQ3A15', descricao: 'Caminhonete', fabricante: 'Ford', modelo: 'Ranger', tipo: 'leve', demo: true,
-      },
-      modeloId: MODELO_EXEMPLO.id,
-      modeloVersao: MODELO_EXEMPLO.versao,
-    });
-    navegar(rotasInspecao.categorias(v.id));
-  };
-
-  return (
-    <Moldura rodape={<button className="botao botao--primario" onClick={nova}>Nova verificação (exemplo)</button>}>
-      <h1>Minhas verificações</h1>
-      <p className="sub">Tela provisória: login, operação e veículo vêm da fundação.</p>
-      <ul className="lista">
-        {lista.map((v) => (
-          <li key={v.id}>
-            <button
-              className="linha"
-              onClick={() => navegar(v.status === 'concluida' ? rotasInspecao.resultado(v.id) : rotasInspecao.categorias(v.id))}
-            >
-              <span className="linha__texto">
-                {v.veiculo.placa} · {v.veiculo.descricao}
-                <small className="sub"> {new Date(v.iniciadaEm).toLocaleString('pt-BR')}</small>
-              </span>
-              <span className={`chip ${v.status === 'concluida' ? 'chip--ok' : 'chip--media'}`}>
-                {v.status === 'concluida' ? 'Concluída' : 'Em andamento'}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Moldura>
-  );
+  const criou = useRef(false); // StrictMode roda o efeito duas vezes em dev
+  useEffect(() => {
+    if (criou.current) return;
+    criou.current = true;
+    void (async () => {
+      await repo.guardarModelo(MODELO_EXEMPLO);
+      const v = await repo.iniciar({
+        operacao: {
+          unidadeId: 'demo', unidadeNome: 'Complexo DEMO', areaId: 'operacional', areaNome: 'Área operacional',
+          atividadeId: 'transporte-pessoas', atividadeNome: 'Transporte de pessoas',
+        },
+        veiculo: {
+          id: 'demo-1', placa: 'OWQ3A15', descricao: 'Caminhonete', fabricante: 'Ford', modelo: 'Ranger', tipo: 'leve', demo: true,
+        },
+        modeloId: MODELO_EXEMPLO.id,
+        modeloVersao: MODELO_EXEMPLO.versao,
+      });
+      navegar(rotasInspecao.categorias(v.id), { replace: true });
+    })();
+  }, [repo, navegar]);
+  return null;
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -77,7 +59,7 @@ createRoot(document.getElementById('root')!).render(
     <ProvedorInspecao banco={banco} fila={fila} marca={MARCA_PADRAO}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<InicioProvisorio />} />
+          <Route path="/nova-verificacao" element={<NovaVerificacaoProvisoria />} />
           {rotasDaInspecao}
         </Routes>
       </BrowserRouter>

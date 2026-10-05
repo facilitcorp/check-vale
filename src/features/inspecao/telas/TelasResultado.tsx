@@ -4,9 +4,9 @@ import type { Criticidade, ModeloChecklist, Verificacao } from '@/contracts/chec
 import { CRITICIDADES } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
-import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
-import { useEstadoFila, useInspecao, useVerificacao } from '../contexto';
-import { calcularResultado, planoDeAcao } from '../dominio/resultado';
+import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada, SeloSituacao } from '../componentes/Moldura';
+import { useInspecao, useSituacaoDaInspecao } from '../contexto';
+import { useChecklistDaInspecao, type ChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import { ROTULO_CRITICIDADE } from './TelaNaoConformidade';
 
@@ -18,34 +18,31 @@ export function faixa(percentual: number | null): 'bom' | 'medio' | 'ruim' | 'na
   return 'ruim';
 }
 
-function useConcluida():
-  | { verificacao: Verificacao; modelo: ModeloChecklist }
-  | null
-  | undefined
-  | 'rascunho'
-  | 'indisponivel' {
+type Concluida = { verificacao: Verificacao; modelo: ModeloChecklist; resultado: NonNullable<ChecklistDaInspecao['resultado']> };
+
+function useConcluida(): Concluida | null | undefined | 'rascunho' | 'indisponivel' {
   const { verificacaoId = '' } = useParams();
-  const dados = useVerificacao(verificacaoId);
-  if (!dados) return dados;
-  if (dados.verificacao.status !== 'concluida') return 'rascunho';
-  if (!dados.modelo) return 'indisponivel';
-  return { verificacao: dados.verificacao, modelo: dados.modelo };
+  const { carregando, inspecao, modelo, resultado } = useChecklistDaInspecao(verificacaoId);
+  if (carregando) return undefined;
+  if (!inspecao) return null;
+  if (inspecao.status !== 'concluida') return 'rascunho';
+  if (!modelo || !resultado) return 'indisponivel';
+  return { verificacao: inspecao, modelo, resultado };
 }
 
 /** Tela 10. */
 export function TelaResultado() {
   const dados = useConcluida();
   const navegar = useNavigate();
-  const { pendentes, online } = useEstadoFila();
+  const situacao = useSituacaoDaInspecao(typeof dados === 'object' && dados ? dados.verificacao : null);
   const { abrirRelatorio } = useInspecao();
   const { verificacaoId = '' } = useParams();
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   if (dados === 'indisponivel') return <ChecklistIndisponivel />;
-  const { verificacao: v, modelo } = dados;
-  const r = calcularResultado(modelo, v);
-  const sincronizada = online && pendentes === 0;
+  const { verificacao: v, resultado: r } = dados;
+  const sincronizada = situacao === 'enviado';
 
   return (
     <Moldura
@@ -68,6 +65,9 @@ export function TelaResultado() {
       }
     >
       <h1 className="centro">Verificação concluída!</h1>
+      <p className="centro">
+        <SeloSituacao situacao={situacao} />
+      </p>
       <Anel percentual={r.indiceProntidao} />
       <div className="cartoes">
         {/* ponto de atenção é um conforme com observação: sai daqui para não contar duas vezes */}
@@ -126,8 +126,7 @@ export function TelaResultadoCategorias() {
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   if (dados === 'indisponivel') return <ChecklistIndisponivel />;
-  const { verificacao: v, modelo } = dados;
-  const r = calcularResultado(modelo, v);
+  const { verificacao: v, modelo, resultado: r } = dados;
 
   return (
     <Moldura
@@ -171,8 +170,8 @@ export function TelaPlanoAcao() {
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   if (dados === 'indisponivel') return <ChecklistIndisponivel />;
-  const { verificacao: v, modelo } = dados;
-  const acoes = planoDeAcao(modelo, v);
+  const { verificacao: v, resultado } = dados;
+  const acoes = resultado.plano;
   const visiveis = filtro === 'todos' ? acoes : acoes.filter((a) => a.criticidade === filtro);
   const filtros: Filtro[] = ['todos', ...CRITICIDADES.filter((c) => acoes.some((a) => a.criticidade === c))];
   const nomeFiltro = (f: Filtro) =>

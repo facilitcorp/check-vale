@@ -3,7 +3,8 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CRITICIDADES, type Criticidade, type ModeloChecklist, type Verificacao } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
-import { useInspecao, useVerificacao } from '../contexto';
+import { useInspecao } from '../contexto';
+import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import type { EstadoRascunhoItem } from './TelaItem';
 
@@ -17,15 +18,13 @@ export const ROTULO_CRITICIDADE: Record<Criticidade, { nome: string; ajuda: stri
 /** Telas 7 e 8: descrição, criticidade e foto obrigatória. */
 export function TelaNaoConformidade() {
   const { verificacaoId = '', itemId = '' } = useParams();
-  const dados = useVerificacao(verificacaoId);
-  if (dados === undefined) return <Carregando />;
-  if (dados === null) return <NaoEncontrada />;
-  if (!dados.modelo) return <ChecklistIndisponivel />;
-  if (dados.verificacao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
-  // só monta o formulário com os dados já carregados, para preencher a edição
-  return (
-    <FormularioNaoConformidade key={itemId} itemId={itemId} verificacao={dados.verificacao} modelo={dados.modelo} />
-  );
+  const { carregando, inspecao, modelo } = useChecklistDaInspecao(verificacaoId);
+  if (carregando) return <Carregando />;
+  if (!inspecao) return <NaoEncontrada />;
+  if (!modelo) return <ChecklistIndisponivel />;
+  if (inspecao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
+  // key: troca de item zera o formulário (e só monta com os dados já carregados)
+  return <FormularioNaoConformidade key={itemId} itemId={itemId} verificacao={inspecao} modelo={modelo} />;
 }
 
 function FormularioNaoConformidade(props: { itemId: string; verificacao: Verificacao; modelo: ModeloChecklist }) {

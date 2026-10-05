@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { ModeloChecklist, RecortarModelo, Verificacao } from '@/contracts/checklist';
+import type { ModeloChecklist, OperacaoSync, RecortarModelo, Verificacao } from '@/contracts/checklist';
+import { situacaoSync, type SituacaoSync } from '@/infra/offline/situacao';
 import type { BancoLocal } from '@/infra/offline/banco';
 import type { EstadoFila, FilaSincronizacao } from '@/infra/offline/fila';
 import { MARCA_PADRAO, type Marca } from '@/infra/branding/marca';
@@ -14,6 +15,7 @@ interface Dependencias {
   /** Abre o PDF da verificação (API da fundação). Sem isso, o botão fica desabilitado. */
   abrirRelatorio?: (verificacaoId: string) => void;
   recortar: RecortarModelo;
+  rotaNovaVerificacao: string;
 }
 
 const Ctx = createContext<Dependencias | null>(null);
@@ -26,6 +28,8 @@ export function ProvedorInspecao(props: {
   abrirRelatorio?: (verificacaoId: string) => void;
   /** Regras de aplicabilidade (na integração: aplicarRegras + contextoDaInspecao). */
   recortar?: RecortarModelo;
+  /** Rota do início do fluxo de nova verificação (operação → veículo), da fundação. */
+  rotaNovaVerificacao?: string;
   children: ReactNode;
 }) {
   const [deps] = useState<Dependencias>(() => {
@@ -37,6 +41,7 @@ export function ProvedorInspecao(props: {
       marca: props.marca ?? MARCA_PADRAO,
       abrirRelatorio: props.abrirRelatorio,
       recortar,
+      rotaNovaVerificacao: props.rotaNovaVerificacao ?? '/nova-verificacao',
     };
   });
   return <Ctx.Provider value={deps}>{props.children}</Ctx.Provider>;
@@ -108,4 +113,41 @@ export function useUrlEvidencia(id: string): string | undefined {
     };
   }, [id, repo]);
   return url;
+}
+
+/** Estado de sincronização do aparelho inteiro (topo das telas e tela inicial). */
+export function useSituacaoGlobal(): { situacao: SituacaoSync; pendentes: number; tentarAgora: () => void } {
+  const { fila } = useInspecao();
+  const e = useEstadoFila();
+  return {
+    situacao: situacaoSync({ online: e.online, pendentes: e.pendentes, sincronizando: e.sincronizando, comErro: !!e.ultimoErro }),
+    pendentes: e.pendentes,
+    tentarAgora: () => void fila.processar(),
+  };
+}
+
+const daInspecao = (op: OperacaoSync, id: string) =>
+  op.tipo === 'verificacao.salvar'
+    ? op.verificacao.id === id
+    : op.tipo === 'evidencia.enviar'
+      ? op.evidencia.verificacaoId === id
+      : op.verificacaoId === id;
+
+/** Estado de sincronização de UMA inspeção (cards da tela inicial e histórico). */
+export function useSituacaoDaInspecao(inspecao: Verificacao | null | undefined): SituacaoSync | undefined {
+  const { banco } = useInspecao();
+  const global = useEstadoFila();
+  const id = inspecao?.id;
+  const fila = useLiveQuery(
+    async () => (id ? banco.fila.filter((i) => daInspecao(i.operacao, id)).toArray() : []),
+    [banco, id],
+  );
+  if (!inspecao || !fila) return undefined;
+  return situacaoSync({
+    online: global.online,
+    pendentes: fila.length,
+    sincronizando: global.sincronizando,
+    comErro: fila.some((i) => !!i.ultimoErro),
+    emAndamento: inspecao.status === 'rascunho',
+  });
 }

@@ -1,5 +1,7 @@
 import { Route } from 'react-router-dom';
 import { TelaCategorias } from './telas/TelaCategorias';
+import { TelaHistorico } from './telas/TelaHistorico';
+import { TelaInicio } from './telas/TelaInicio';
 import { TelaItem } from './telas/TelaItem';
 import { TelaNaoConformidade } from './telas/TelaNaoConformidade';
 import { TelaPlanoAcao, TelaResultado, TelaResultadoCategorias } from './telas/TelasResultado';
@@ -11,6 +13,8 @@ export { rotas as rotasInspecao } from './rotas';
 /** Rotas do fluxo da inspeção, para a fundação encaixar no roteador dela. */
 export const rotasDaInspecao = (
   <>
+    <Route path="/" element={<TelaInicio />} />
+    <Route path="/historico" element={<TelaHistorico />} />
     <Route path="/inspecao/:verificacaoId" element={<TelaCategorias />} />
     <Route path="/inspecao/:verificacaoId/item/:itemId" element={<TelaItem />} />
     <Route path="/inspecao/:verificacaoId/item/:itemId/nao-conformidade" element={<TelaNaoConformidade />} />

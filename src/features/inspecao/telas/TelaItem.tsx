@@ -4,7 +4,8 @@ import type { ModeloChecklist, StatusItem, Verificacao } from '@/contracts/check
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
 import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
-import { useInspecao, useVerificacao } from '../contexto';
+import { useInspecao } from '../contexto';
+import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 
 export interface EstadoRascunhoItem {
@@ -20,13 +21,13 @@ const OPCOES: { status: StatusItem; rotulo: string; icone: string }[] = [
 /** Tela 6: um item por vez. */
 export function TelaItem() {
   const { verificacaoId = '', itemId = '' } = useParams();
-  const dados = useVerificacao(verificacaoId);
-  if (dados === undefined) return <Carregando />;
-  if (dados === null) return <NaoEncontrada />;
-  if (!dados.modelo) return <ChecklistIndisponivel />;
-  if (dados.verificacao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
-  // key: troca de item zera o formulário
-  return <FormularioItem key={itemId} itemId={itemId} verificacao={dados.verificacao} modelo={dados.modelo} />;
+  const { carregando, inspecao, modelo } = useChecklistDaInspecao(verificacaoId);
+  if (carregando) return <Carregando />;
+  if (!inspecao) return <NaoEncontrada />;
+  if (!modelo) return <ChecklistIndisponivel />;
+  if (inspecao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
+  // key: troca de item zera o formulário (e só monta com os dados já carregados)
+  return <FormularioItem key={itemId} itemId={itemId} verificacao={inspecao} modelo={modelo} />;
 }
 
 function localizar(modelo: ModeloChecklist, itemId: string) {

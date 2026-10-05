@@ -1,7 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Veiculo } from '@/contracts/checklist';
-import { useEstadoFila, useInspecao } from '../contexto';
+import { useInspecao, useSituacaoGlobal } from '../contexto';
+import { ROTULO_SITUACAO, type SituacaoSync } from '@/infra/offline/situacao';
 import { Icone } from './Icone';
 
 /** Cabeçalho verde com a marca, voltar e o estado da sincronização. */
@@ -42,31 +43,27 @@ export function Moldura(props: { voltarPara?: string; children: ReactNode; rodap
 
 /** Faixa visível sem sinal: o inspetor precisa saber que pode continuar e que nada se perde. */
 function AvisoSemSinal() {
-  const { online } = useEstadoFila();
-  if (online) return null;
-  return <p className="aviso-offline">Sem sinal. Pode continuar: tudo fica salvo no aparelho e sobe sozinho.</p>;
+  const { situacao } = useSituacaoGlobal();
+  if (situacao !== 'sem_conexao') return null;
+  return <p className="aviso-offline">Sem conexão. {ROTULO_SITUACAO.sem_conexao.ajuda.replace('Pode continuar: ', 'Pode continuar, ')}</p>;
 }
 
 function IndicadorSync() {
-  const { pendentes, online, sincronizando, ultimoErro } = useEstadoFila();
-  const rotulo = !online
-    ? `Sem sinal · ${pendentes} a enviar`
-    : sincronizando
-      ? 'Enviando…'
-      : pendentes > 0
-        ? `${pendentes} a enviar${ultimoErro ? ' · nova tentativa em instantes' : ''}`
-        : 'Tudo enviado';
+  const { situacao, pendentes } = useSituacaoGlobal();
+  const { rotulo } = ROTULO_SITUACAO[situacao];
+  const texto = pendentes > 0 ? `${rotulo} · ${pendentes} pendente${pendentes > 1 ? 's' : ''}` : rotulo;
   return (
-    <span
-      className={`sync ${!online ? 'sync--off' : pendentes > 0 ? 'sync--pendente' : 'sync--ok'}`}
-      title={rotulo}
-      aria-label={rotulo}
-      role="status"
-    >
-      <Icone nome="nuvem" tamanho={18} />
+    <span className={`sync sync--${situacao}`} title={texto} aria-label={texto} role="status">
+      <Icone nome={situacao === 'erro' ? 'alerta' : 'nuvem'} tamanho={18} />
       {pendentes > 0 && <span className="sync__num">{pendentes}</span>}
     </span>
   );
+}
+
+/** Situação com texto (nunca só cor), para cards e listas. */
+export function SeloSituacao({ situacao }: { situacao: SituacaoSync | undefined }) {
+  if (!situacao) return null;
+  return <span className={`situacao situacao--${situacao}`}>{ROTULO_SITUACAO[situacao].rotulo}</span>;
 }
 
 /** Esqueleto enquanto o banco do aparelho responde (no celular fraco leva um instante). */
@@ -100,10 +97,7 @@ export function ChecklistIndisponivel() {
   return (
     <Moldura rodape={<button className="botao botao--primario" onClick={() => navegar('/')}>Ir para o início</button>}>
       <h1>Checklist indisponível neste aparelho</h1>
-      <p className="sub">
-        A versão do checklist desta inspeção não está salva aqui. Conecte-se à internet e sincronize para continuar.
-        Suas respostas já registradas não foram perdidas.
-      </p>
+      <p className="sub">Conecte-se para sincronizar. Suas respostas já registradas não foram perdidas.</p>
     </Moldura>
   );
 }

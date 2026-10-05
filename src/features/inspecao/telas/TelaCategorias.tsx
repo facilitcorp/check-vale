@@ -9,10 +9,12 @@ import {
   NaoEncontrada,
   nomeVeiculo,
   SeloDemo,
+  SeloSituacao,
 } from '../componentes/Moldura';
 import { Icone } from '../componentes/Icone';
-import { useInspecao, useVerificacao } from '../contexto';
-import { calcularResultado, podeConcluir, type ProgressoCategoria } from '../dominio/resultado';
+import { useInspecao, useSituacaoDaInspecao } from '../contexto';
+import { useChecklistDaInspecao } from '../dados/ganchos';
+import type { ProgressoCategoria } from '../dominio/resultado';
 import { rotas } from '../rotas';
 
 /** Primeiro item sem resposta (na ordem do checklist), opcionalmente dentro de uma categoria. */
@@ -28,21 +30,22 @@ export function proximoPendente(modelo: ModeloChecklist, v: Verificacao, categor
 /** Telas 5 (categorias) e 9 (progresso): a mesma lista, antes e durante a inspeção. */
 export function TelaCategorias() {
   const { verificacaoId = '' } = useParams();
-  const dados = useVerificacao(verificacaoId);
+  const { carregando, inspecao, modelo, resultado } = useChecklistDaInspecao(verificacaoId);
+  const situacao = useSituacaoDaInspecao(inspecao);
   const { repo } = useInspecao();
   const navegar = useNavigate();
   const [erro, setErro] = useState<string>();
   const [concluindo, setConcluindo] = useState(false);
 
-  if (dados === undefined) return <Carregando />;
-  if (dados === null) return <NaoEncontrada />;
-  if (!dados.modelo) return <ChecklistIndisponivel />;
-  const { verificacao: v, modelo } = dados;
+  if (carregando) return <Carregando />;
+  if (!inspecao) return <NaoEncontrada />;
+  if (!modelo || !resultado) return <ChecklistIndisponivel />;
+  const v = inspecao;
   if (v.status === 'concluida') return <Navigate to={rotas.resultado(v.id)} replace />;
 
-  const res = calcularResultado(modelo, v);
+  const res = resultado;
   const iniciou = res.respondidos > 0;
-  const completo = podeConcluir(modelo, v);
+  const completo = res.respondidos === res.total;
 
   const abrirCategoria = (categoriaId: string) => {
     const cat = modelo.categorias.find((c) => c.id === categoriaId)!;
@@ -60,8 +63,10 @@ export function TelaCategorias() {
     if (concluindo) return;
     setConcluindo(true);
     try {
+      // Sem navegar() aqui: ao gravar 'concluida' esta tela se redireciona sozinha
+      // (Navigate acima). Navegar também depois do await levava o inspetor de volta
+      // ao resultado se ele já tivesse avançado para outra tela.
       await repo.concluir(v.id);
-      navegar(rotas.resultado(v.id), { replace: true });
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível concluir.');
       setConcluindo(false);
@@ -89,8 +94,11 @@ export function TelaCategorias() {
               <SeloDemo veiculo={v.veiculo} />
             </p>
           </div>
-          <span className="contador">
-            {res.respondidos} de {res.total}
+          <span className="cabecalho__lado">
+            <span className="contador">
+              {res.respondidos} de {res.total}
+            </span>
+            <SeloSituacao situacao={situacao} />
           </span>
         </div>
         {iniciou && <BarraProgresso valor={res.respondidos} total={res.total} />}
