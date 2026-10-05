@@ -57,6 +57,11 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .rodape__dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* Sincronização */
+.aviso-offline {
+  position: sticky; top: calc(env(safe-area-inset-top) + 60px); z-index: 1; margin: 0;
+  padding: 8px 16px; background: #fff4d6; color: #713f12; font-size: 0.85rem; font-weight: 500;
+  border-bottom: 1px solid #f5d77a;
+}
 .sync { position: relative; justify-self: center; display: grid; place-items: center; width: 36px; height: 36px; }
 .sync--ok { opacity: 0.85; }
 .sync--pendente { color: var(--cor-destaque); }
@@ -100,8 +105,8 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .linha__icone--operacao { background: #fff8db; color: #b58900; }
 .linha__texto { flex: 1; font-weight: 500; }
 .linha__contagem { color: var(--texto-suave); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-.linha__contagem.ok { color: var(--cor-bom); font-weight: 700; }
-.linha__contagem.atencao { color: var(--cor-medio); font-weight: 700; }
+.linha__contagem.ok { color: #15803d; font-weight: 700; }
+.linha__contagem.atencao { color: #b45309; font-weight: 700; }
 .linha__seta { color: var(--texto-suave); }
 .selo { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
 .selo--ok { background: var(--cor-bom); }
@@ -138,7 +143,7 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .fotos__carregando { display: block; width: 100%; height: 100%; background: var(--borda); }
 .fotos__adicionar { border: 1.5px dashed #b9c5bf; background: var(--superficie); display: grid; place-items: center; color: var(--texto-suave); }
 .fotos__remover {
-  position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%;
+  position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border-radius: 50%;
   border: 0; background: rgba(0, 0, 0, 0.65); color: #fff; display: grid; place-items: center;
 }
 
@@ -151,10 +156,11 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .criticidade input { position: absolute; opacity: 0; pointer-events: none; }
 .criticidade small { display: block; color: var(--texto-suave); }
 .criticidade__marca { width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; flex: none; }
-.criticidade--critica { color: var(--cor-ruim); }
-.criticidade--alta { color: #ea580c; }
-.criticidade--media { color: var(--cor-medio); }
-.criticidade--baixa { color: var(--cor-bom); }
+/* tons escurecidos: texto precisa de contraste AA sobre branco */
+.criticidade--critica { color: #b91c1c; }
+.criticidade--alta { color: #c2410c; }
+.criticidade--media { color: #a16207; }
+.criticidade--baixa { color: #15803d; }
 .criticidade strong { color: inherit; }
 .criticidade--ativa { background: #fff8ec; border-color: currentColor; }
 .criticidade--ativa .criticidade__marca { background: currentColor; box-shadow: inset 0 0 0 3px #fff; }
@@ -194,7 +200,7 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 
 /* Plano de ação */
 .filtros { display: flex; gap: 8px; overflow-x: auto; margin: 14px 0; padding-bottom: 2px; }
-.filtro { flex: none; min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--borda); background: var(--superficie); font-size: 0.85rem; }
+.filtro { flex: none; min-height: 44px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--borda); background: var(--superficie); font-size: 0.85rem; }
 .filtro--ativo { background: var(--cor-primaria); border-color: var(--cor-primaria); color: #fff; }
 .chip { flex: none; padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 .chip--critica { background: #fdeaea; color: var(--cor-ruim); }
@@ -202,3 +208,11 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .chip--media { background: #fff6dc; color: #a16207; }
 .chip--baixa, .chip--ok { background: #e7f6ec; color: #15803d; }
 .detalhe { padding: 10px 12px 4px; }
+
+/* Carregando */
+.carregando { display: grid; gap: 10px; }
+.carregando__bloco { height: 56px; border-radius: var(--raio); background: linear-gradient(90deg, #e8ecea 0%, #f4f6f5 50%, #e8ecea 100%); background-size: 200% 100%; animation: brilho 1.2s infinite; }
+.carregando__bloco--titulo { height: 28px; width: 60%; }
+@keyframes brilho { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .carregando__bloco { animation: none; } .progresso__barra, .anel__valor { transition: none; } }
+h1:focus { outline: none; }

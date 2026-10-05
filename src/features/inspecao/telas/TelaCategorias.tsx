@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { ModeloChecklist, Verificacao } from '@/contracts/checklist';
-import { BarraProgresso, Moldura } from '../componentes/Moldura';
+import { BarraProgresso, Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { Icone } from '../componentes/Icone';
 import { useInspecao, useVerificacao } from '../contexto';
 import { calcularResultado, podeConcluir, type ProgressoCategoria } from '../dominio/resultado';
@@ -24,9 +24,10 @@ export function TelaCategorias() {
   const { repo } = useInspecao();
   const navegar = useNavigate();
   const [erro, setErro] = useState<string>();
+  const [concluindo, setConcluindo] = useState(false);
 
-  if (dados === undefined) return null; // carregando do aparelho
-  if (dados === null) return <Navigate to="/" replace />;
+  if (dados === undefined) return <Carregando />;
+  if (dados === null) return <NaoEncontrada />;
   const { verificacao: v, modelo } = dados;
   if (v.status === 'concluida') return <Navigate to={rotas.resultado(v.id)} replace />;
 
@@ -47,11 +48,14 @@ export function TelaCategorias() {
       if (alvo) navegar(rotas.item(v.id, alvo.id));
       return;
     }
+    if (concluindo) return;
+    setConcluindo(true);
     try {
       await repo.concluir(v.id);
       navegar(rotas.resultado(v.id), { replace: true });
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível concluir.');
+      setConcluindo(false);
     }
   };
 
@@ -61,7 +65,7 @@ export function TelaCategorias() {
       rodape={
         <>
           {erro && <p className="erro" role="alert">{erro}</p>}
-          <button className="botao botao--primario" onClick={acaoPrincipal}>
+          <button className="botao botao--primario" onClick={acaoPrincipal} disabled={concluindo}>
             {completo ? 'Concluir verificação' : iniciou ? 'Continuar verificação' : 'Iniciar verificação'}
           </button>
         </>

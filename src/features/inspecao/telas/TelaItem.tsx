@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { ModeloChecklist, StatusItem, Verificacao } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
-import { Moldura } from '../componentes/Moldura';
+import { Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { useInspecao, useVerificacao } from '../contexto';
 import { rotas } from '../rotas';
 
@@ -21,8 +21,8 @@ const OPCOES: { status: StatusItem; rotulo: string; icone: string }[] = [
 export function TelaItem() {
   const { verificacaoId = '', itemId = '' } = useParams();
   const dados = useVerificacao(verificacaoId);
-  if (dados === undefined) return null;
-  if (dados === null) return <Navigate to="/" replace />;
+  if (dados === undefined) return <Carregando />;
+  if (dados === null) return <NaoEncontrada />;
   if (dados.verificacao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
   // key: troca de item zera o formulário
   return <FormularioItem key={itemId} itemId={itemId} {...dados} />;

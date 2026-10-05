@@ -4,7 +4,7 @@ import type { Criticidade, ModeloChecklist, Verificacao } from '@/contracts/chec
 import { CRITICIDADES } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
-import { Moldura } from '../componentes/Moldura';
+import { Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { useEstadoFila, useInspecao, useVerificacao } from '../contexto';
 import { calcularResultado, planoDeAcao } from '../dominio/resultado';
 import { rotas } from '../rotas';
@@ -32,8 +32,8 @@ export function TelaResultado() {
   const { pendentes, online } = useEstadoFila();
   const { abrirRelatorio } = useInspecao();
   const { verificacaoId = '' } = useParams();
-  if (dados === undefined) return null;
-  if (dados === null) return <Navigate to="/" replace />;
+  if (dados === undefined) return <Carregando />;
+  if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   const { verificacao: v, modelo } = dados;
   const r = calcularResultado(modelo, v);
@@ -114,8 +114,8 @@ export function TelaResultadoCategorias() {
   const dados = useConcluida();
   const navegar = useNavigate();
   const { verificacaoId = '' } = useParams();
-  if (dados === undefined) return null;
-  if (dados === null) return <Navigate to="/" replace />;
+  if (dados === undefined) return <Carregando />;
+  if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   const { verificacao: v, modelo } = dados;
   const r = calcularResultado(modelo, v);
@@ -158,8 +158,8 @@ export function TelaPlanoAcao() {
   const { verificacaoId = '' } = useParams();
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [aberto, setAberto] = useState<string>();
-  if (dados === undefined) return null;
-  if (dados === null) return <Navigate to="/" replace />;
+  if (dados === undefined) return <Carregando />;
+  if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   const { verificacao: v, modelo } = dados;
   const acoes = planoDeAcao(modelo, v);

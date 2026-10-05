@@ -28,7 +28,14 @@ export function Evidencias(props: { verificacaoId: string; itemId: string; somen
         await repo.adicionarEvidencia(props.verificacaoId, props.itemId, await comprimirImagem(arquivo));
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível guardar a foto.');
+      const semEspaco = e instanceof DOMException && e.name === 'QuotaExceededError';
+      setErro(
+        semEspaco
+          ? 'Sem espaço no aparelho para guardar a foto. Conecte-se para enviar as fotos pendentes e tente de novo.'
+          : e instanceof Error
+            ? e.message
+            : 'Não foi possível guardar a foto.',
+      );
     } finally {
       setProcessando(false);
       if (entrada.current) entrada.current.value = '';
