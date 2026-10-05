@@ -45,7 +45,7 @@ do que duplica a fundação. Executar SOMENTE depois que `origin/feat/nucleo-con
 | Evidências | `comprimirImagem` + `repo.adicionarEvidencia` | só `adicionarEvidencia` (já comprime) |
 | remover foto | `repo.removerEvidencia` | `salvarResposta` sem o id (foto fica no servidor sem vínculo) |
 | resultado | `abrirRelatorio` via provedor | `abrirRelatorio(inspecaoId)` de `lib/relatorio.ts` |
-| plano de ação | `resultado.plano` | **confirmar nome do campo com o dev-1** |
+| plano de ação (tela 12) | `resultado.plano`, item `tituloItem` | `resultado.planoAcao`, item `itemTitulo` (confirmado pelo dev-1; já vem ordenado: crítica primeiro, depois ordem do checklist). As fotos do item continuam vindo por `itemId` |
 | início | — | trazer o aviso de **registros recusados** da tela inicial da fundação, acima do cartão de sincronização |
 
 ## Aceite antes do PR
