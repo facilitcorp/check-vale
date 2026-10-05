@@ -2,6 +2,9 @@ import { useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { carregarSessao, useSessao } from "./dados/sessao";
 import { iniciarSincronizacao } from "./dados/sincronizacao";
+import { LayoutAdmin } from "./admin/LayoutAdmin";
+import { PaginaFrota, PaginaOperacao, PaginaUsuarios } from "./admin/PaginasCadastro";
+import { EditorVersao, PaginaModelos } from "./admin/PaginaModelos";
 import { Abertura } from "./telas/Abertura";
 import { CadastroVeiculo } from "./telas/CadastroVeiculo";
 import { ChecklistProvisorio } from "./telas/ChecklistProvisorio";
@@ -29,6 +32,14 @@ export function App() {
         <Route path="/nova/veiculo" element={<Protegida><SelecionarVeiculo /></Protegida>} />
         <Route path="/veiculos/novo" element={<Protegida><CadastroVeiculo /></Protegida>} />
         <Route path="/inspecao/:id/*" element={<Protegida><ChecklistProvisorio /></Protegida>} />
+        <Route path="/admin" element={<Protegida><LayoutAdmin /></Protegida>}>
+          <Route index element={<Navigate to="modelos" replace />} />
+          <Route path="modelos" element={<PaginaModelos />} />
+          <Route path="modelos/:id/v/:v" element={<EditorVersao />} />
+          <Route path="operacao" element={<PaginaOperacao />} />
+          <Route path="frota" element={<PaginaFrota />} />
+          <Route path="usuarios" element={<PaginaUsuarios />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

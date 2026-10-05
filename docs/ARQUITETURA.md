@@ -42,7 +42,7 @@ SQL puro sobre uma interface mínima (`Db.query/transacao`). Em dev/teste roda e
 
 ## Fora do MVP (já previsto no desenho)
 
-SSO Microsoft (Entra ID), assinatura do motorista, bucket de fotos em nuvem, painel do gestor, cadastro de modelos pela interface.
+SSO Microsoft (Entra ID), assinatura do motorista, bucket de fotos em nuvem, painel do gestor. Núcleo configurável: ver `docs/NUCLEO-CONFIGURAVEL.md`.
 
 ## Rodar local
 
@@ -50,6 +50,6 @@ SSO Microsoft (Entra ID), assinatura do motorista, bucket de fotos em nuvem, pai
 npm install
 npm run dev:api   # http://localhost:3000 (PGlite em memória + dados de demonstração)
 npm run dev:web   # http://localhost:5173 (proxy /api → 3000)
-# login demo: inspetor@checkvale.dev / checkvale
+# login demo: inspetor@checkvale.dev ou admin@checkvale.dev / checkvale
 npm test && npm run typecheck && npm run build
 ```

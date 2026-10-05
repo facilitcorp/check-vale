@@ -1,6 +1,6 @@
-import { aplicarRegras, calcularResultado, contextoDaInspecao } from "@checkvale/shared";
+import { aplicarRegras, calcularResultado, contextoDaInspecao, pode } from "@checkvale/shared";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, ClipboardCheck, LogOut } from "lucide-react";
+import { ChevronRight, ClipboardCheck, LogOut, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Aviso, Botao, Cabecalho, Tela } from "../componentes/ui";
 import { banco } from "../dados/banco";
@@ -44,6 +44,12 @@ export function Inicio() {
               <p className="mt-1">Procure o gestor da operação.</p>
             </Aviso>
           </div>
+        )}
+
+        {usuario && pode(usuario.papel, "config:ler") && (
+          <Link to="/admin" className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-marca py-3 font-semibold text-marca">
+            <Settings size={18} /> Administração
+          </Link>
         )}
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-texto-suave">Verificações</h2>
