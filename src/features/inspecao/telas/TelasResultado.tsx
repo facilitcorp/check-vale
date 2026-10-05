@@ -62,7 +62,8 @@ export function TelaResultado() {
       <h1 className="centro">Verificação concluída!</h1>
       <Anel percentual={r.indiceProntidao} />
       <div className="cartoes">
-        <Cartao tom="bom" icone="check" valor={r.conformes} rotulo="Itens conformes" />
+        {/* ponto de atenção é um conforme com observação: sai daqui para não contar duas vezes */}
+        <Cartao tom="bom" icone="check" valor={r.conformes - r.pontosAtencao} rotulo="Itens conformes" />
         <Cartao tom="medio" icone="alerta" valor={r.pontosAtencao} rotulo="Pontos de atenção" />
         <Cartao tom="ruim" icone="x" valor={r.naoConformes} rotulo="Não conformes" />
         <Cartao tom="na" icone="menos" valor={r.naoSeAplica} rotulo="Não se aplicam" />
