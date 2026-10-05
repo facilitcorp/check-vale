@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Catalogo, Inspecao, OperacaoSync, Resposta, SyncSaida } from "@checkvale/shared";
+import { aplicarRegras, contextoDaInspecao, SEM_RESTRICAO, type Catalogo, type Inspecao, type OperacaoSync, type Resposta, type SyncSaida, type VersaoModelo } from "@checkvale/shared";
 import { criarApp } from "./app";
 import { armazenamentoMemoria } from "./armazenamento";
 import { lerConfig } from "./config";
@@ -75,7 +75,7 @@ describe("catálogo e veículos", () => {
 
   it("cadastra veículo pela fila e rejeita placa duplicada", async () => {
     const tipo = catalogo.tiposVeiculo[0]!.id;
-    const v = { id: randomUUID(), placa: "abc1d23", codigo: null, tipoVeiculoId: tipo, descricao: "Caminhonete", marcaModelo: "Toyota Hilux", unidadeId: null, criadoEm: agora(), atualizadoEm: agora() };
+    const v = { id: randomUUID(), placa: "abc1d23", codigo: null, tipoVeiculoId: tipo, descricao: "Caminhonete", fabricante: "Toyota", modelo: "Hilux", empresa: null, unidadeId: null, status: "ativo" as const, atributos: {}, demo: false, criadoEm: agora(), atualizadoEm: agora() };
     const s = await sync([{ opId: randomUUID(), tipo: "veiculo.salvar", veiculo: v }]);
     expect(s.resultados[0]!.status).toBe("aplicada");
     const dup = await sync([{ opId: randomUUID(), tipo: "veiculo.salvar", veiculo: { ...v, id: randomUUID(), placa: "ABC1D23" } }]);
@@ -90,11 +90,12 @@ describe("inspeção ponta a ponta via sync", () => {
     const modelo = catalogo.modelos[0]!;
     const itens = modelo.categorias.flatMap((c) => c.itens);
     const veiculos = (await app.inject({ method: "GET", url: "/api/veiculos", headers: auth() })).json().veiculos;
+    const onibus = veiculos.find((v: { placa: string }) => v.placa === "BVL2E77");
     const evidenciaId = randomUUID();
     const base: Inspecao = {
       id: randomUUID(), modeloId: modelo.id, modeloVersao: modelo.versao,
       unidadeId: catalogo.unidades[0]!.id, areaId: catalogo.areas[0]!.id, atividadeId: catalogo.atividades[0]!.id,
-      veiculoId: veiculos[0].id, inspetorId: usuarioId, status: "em_andamento", iniciadaEm: agora(), concluidaEm: null, respostas: [],
+      veiculoId: onibus.id, inspetorId: usuarioId, tipoVeiculoId: onibus.tipoVeiculoId, atributosVeiculo: onibus.atributos, status: "em_andamento", iniciadaEm: agora(), concluidaEm: null, respostas: [],
     };
     const nc: Resposta = {
       itemId: itens[0]!.id, status: "nao_conforme", observacao: null,
@@ -130,7 +131,10 @@ describe("inspeção ponta a ponta via sync", () => {
     expect(s.resultados[0]!.status).toBe("aplicada");
 
     const { rows } = await db.query<{ status: string; indice: number; situacao: string }>(`SELECT status, indice, situacao FROM inspecoes WHERE id = $1`, [base.id]);
-    expect(rows[0]).toEqual({ status: "concluida", indice: Math.round(((itens.length - 1) / itens.length) * 100), situacao: "apto_com_restricoes" });
+    // Ônibus DEMO: freio pneumático e sem giroflex → o item de giroflex fica fora do índice.
+    const aplicaveis = aplicarRegras(modelo, contextoDaInspecao(base)).categorias.flatMap((c) => c.itens).length;
+    expect(aplicaveis).toBe(itens.length - 1);
+    expect(rows[0]).toEqual({ status: "concluida", indice: Math.round(((aplicaveis - 1) / aplicaveis) * 100), situacao: "apto_com_restricoes" });
 
     // 6) concluída não reabre
     await sync([{ opId: randomUUID(), tipo: "inspecao.salvar", inspecao: { ...base, respostas: [] } }]);
@@ -153,7 +157,7 @@ describe("inspeção ponta a ponta via sync", () => {
     const modelo = catalogo.modelos[0]!;
     const insp = (inspetorId: string, itemId: string): Inspecao => ({
       id: randomUUID(), modeloId: modelo.id, modeloVersao: 1, unidadeId: catalogo.unidades[0]!.id, areaId: catalogo.areas[0]!.id,
-      atividadeId: catalogo.atividades[0]!.id, veiculoId: randomUUID(), inspetorId, status: "em_andamento", iniciadaEm: agora(), concluidaEm: null,
+      atividadeId: catalogo.atividades[0]!.id, veiculoId: randomUUID(), inspetorId, tipoVeiculoId: catalogo.tiposVeiculo[0]!.id, atributosVeiculo: {}, status: "em_andamento", iniciadaEm: agora(), concluidaEm: null,
       respostas: [{ itemId, status: "conforme", observacao: null, naoConformidade: null, evidenciaIds: [], respondidaEm: agora() }],
     });
     const s = await sync([
@@ -171,5 +175,105 @@ describe("segurança", () => {
     const r = await app.inject({ method: "GET", url: "/api/saude" });
     expect(r.headers["x-content-type-options"]).toBe("nosniff");
     expect(r.headers["content-security-policy"]).toContain("default-src 'none'");
+  });
+});
+
+describe("núcleo configurável (admin)", () => {
+  let tokenAdmin: string;
+  const adm = () => ({ authorization: `Bearer ${tokenAdmin}` });
+  const req = (method: "GET" | "POST" | "PATCH" | "PUT", url: string, payload?: unknown) => app.inject({ method, url, headers: adm(), payload: payload as object });
+
+  beforeAll(async () => {
+    const r = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "admin@checkvale.dev", senha: "senha-teste" } });
+    tokenAdmin = r.json().token;
+  });
+
+  it("RBAC: inspetor não acessa admin; admin acessa", async () => {
+    expect((await app.inject({ method: "GET", url: "/api/admin/unidades", headers: auth() })).statusCode).toBe(403);
+    expect((await app.inject({ method: "POST", url: "/api/admin/modelos", headers: auth(), payload: { nome: "x" } })).statusCode).toBe(403);
+    expect((await req("GET", "/api/admin/unidades")).statusCode).toBe(200);
+  });
+
+  it("dados de demonstração vêm marcados como DEMO", async () => {
+    const u = (await req("GET", "/api/admin/unidades")).json();
+    expect(u.every((x: { demo: boolean }) => x.demo)).toBe(true);
+  });
+
+  it("cadastra operação e desativa (sem apagar); inativa some do catálogo do app", async () => {
+    const r = await req("POST", "/api/admin/unidades", { nome: "Unidade Teste", uf: "MG", ativo: true });
+    expect(r.statusCode, r.body).toBe(201);
+    expect(r.json().demo).toBe(false);
+    const id = r.json().id;
+    expect((await req("PATCH", `/api/admin/unidades/${id}`, { ativo: false })).json().ativo).toBe(false);
+    const cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
+    expect(cat.unidades.some((u) => u.id === id)).toBe(false);
+  });
+
+  it("atributo: código imutável e lista exige opções; veículo valida atributos", async () => {
+    expect((await req("POST", "/api/admin/atributos", { codigo: "eixos", nome: "Eixos", tipo: "lista", opcoes: [], unidadeMedida: null, tipoVeiculoIds: [], obrigatorio: false, ordem: 9, ativo: true })).statusCode).toBe(400);
+    const a = await req("POST", "/api/admin/atributos", { codigo: "eixos", nome: "Eixos", tipo: "numero", opcoes: [], unidadeMedida: null, tipoVeiculoIds: [], obrigatorio: false, ordem: 9, ativo: true });
+    expect(a.statusCode, a.body).toBe(201);
+    expect((await req("PATCH", `/api/admin/atributos/${a.json().id}`, { codigo: "outro" })).statusCode).toBe(400);
+    const tipo = catalogo.tiposVeiculo[0]!.id;
+    const base = { placa: "XYZ-9A87", codigo: null, tipoVeiculoId: tipo, fabricante: "Scania", modelo: "R450", descricao: "", empresa: "Transportes Teste", unidadeId: null, status: "ativo" };
+    const ruim = await req("POST", "/api/admin/veiculos", { ...base, atributos: { eixos: "três" } });
+    expect(ruim.statusCode).toBe(400);
+    expect(ruim.json().erros).toContain("Eixos deve ser número.");
+    const ok = await req("POST", "/api/admin/veiculos", { ...base, atributos: { eixos: 3, tipo_freio: "Pneumático" } });
+    expect(ok.statusCode, ok.body).toBe(201);
+    expect(ok.json()).toMatchObject({ placa: "XYZ9A87", empresa: "Transportes Teste", atributos: { eixos: 3 } });
+  });
+
+  it("modelo: rascunho não chega ao app; publicar valida; versão publicada é imutável; nova versão arquiva a anterior", async () => {
+    const criado = (await req("POST", "/api/admin/modelos", { nome: "Checklist Teste" })).json() as VersaoModelo;
+    expect(criado).toMatchObject({ versao: 1, status: "rascunho" });
+
+    const vazia = await req("POST", `/api/admin/modelos/${criado.id}/versoes/1/publicar`);
+    expect(vazia.statusCode).toBe(422);
+    expect(vazia.json().erros).toContain("O modelo não tem categorias.");
+
+    const item = (codigo: string, aplicavel = SEM_RESTRICAO) => ({ id: randomUUID(), codigo, titulo: codigo, descricao: "", ordem: 1, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel });
+    const tipoOnibus = catalogo.tiposVeiculo.find((t) => t.codigo === "onibus")!.id;
+    const corpo = {
+      nome: "Checklist Teste",
+      aplicavel: { ...SEM_RESTRICAO, tipoVeiculoIds: [tipoOnibus] },
+      categorias: [{ id: randomUUID(), codigo: "geral", nome: "Geral", icone: "", ordem: 1, aplicavel: SEM_RESTRICAO, itens: [
+        item("pneu"),
+        item("ar", { ...SEM_RESTRICAO, atributos: [{ atributo: "tipo_freio", operador: "igual" as const, valor: "Pneumático" }] }),
+      ] }],
+    };
+    expect((await req("PUT", `/api/admin/modelos/${criado.id}/versoes/1`, corpo)).statusCode).toBe(200);
+
+    let cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
+    expect(cat.modelos.some((m) => m.id === criado.id)).toBe(false);
+
+    const prev = (await req("POST", `/api/admin/modelos/${criado.id}/versoes/1/previa`, { tipoVeiculoId: tipoOnibus, areaId: "", atividadeId: "", atributos: { tipo_freio: "Hidráulico" } })).json();
+    expect(prev.categorias[0].itens.map((i: { codigo: string }) => i.codigo)).toEqual(["pneu"]);
+
+    expect((await req("POST", `/api/admin/modelos/${criado.id}/versoes/1/publicar`)).json().status).toBe("publicada");
+    expect((await req("PUT", `/api/admin/modelos/${criado.id}/versoes/1`, corpo)).statusCode).toBe(409);
+
+    cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
+    expect(cat.modelos.find((m) => m.id === criado.id)?.versao).toBe(1);
+
+    const v2 = (await req("POST", `/api/admin/modelos/${criado.id}/rascunho`)).json() as VersaoModelo;
+    expect(v2).toMatchObject({ versao: 2, status: "rascunho" });
+    expect(v2.categorias[0]!.itens.map((i) => i.id)).toEqual(corpo.categorias[0]!.itens.map((i) => i.id));
+    expect((await req("POST", `/api/admin/modelos/${criado.id}/rascunho`)).json().versao).toBe(2); // idempotente
+    await req("POST", `/api/admin/modelos/${criado.id}/versoes/2/publicar`);
+
+    const lista = (await req("GET", "/api/admin/modelos")).json();
+    expect(lista.find((m: { id: string }) => m.id === criado.id).versoes.map((v: { status: string }) => v.status)).toEqual(["publicada", "arquivada"]);
+    cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
+    expect(cat.modelos.find((m) => m.id === criado.id)?.versao).toBe(2);
+  });
+
+  it("usuários: admin cria inspetor que consegue entrar; não pode se auto-desativar", async () => {
+    const r = await req("POST", "/api/admin/usuarios", { nome: "Motorista Novo", email: "novo@empresa.com", papel: "inspetor", ativo: true, senha: "senha-forte-1" });
+    expect(r.statusCode, r.body).toBe(201);
+    const login = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "novo@empresa.com", senha: "senha-forte-1" } });
+    expect(login.statusCode).toBe(200);
+    const eu = (await req("GET", "/api/auth/eu")).json();
+    expect((await req("PATCH", `/api/admin/usuarios/${eu.id}`, { ativo: false })).statusCode).toBe(400);
   });
 });

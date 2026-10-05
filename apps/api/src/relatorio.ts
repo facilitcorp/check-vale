@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import { calcularResultado, type Criticidade, type Inspecao, type Situacao } from "@checkvale/shared";
+import { aplicarRegras, calcularResultado, contextoDaInspecao, type Criticidade, type Inspecao, type Situacao } from "@checkvale/shared";
 import type { Db } from "./db";
 import { carregarModelo } from "./mapeamento";
 
@@ -19,10 +19,10 @@ const fmt = (iso: string | null) =>
 export async function gerarRelatorioPdf(db: Db, insp: Inspecao): Promise<Buffer> {
   const modelo = await carregarModelo(db, insp.modeloId, insp.modeloVersao);
   if (!modelo) throw new Error("modelo da inspeção não encontrado");
-  const res = calcularResultado(modelo, insp.respostas);
+  const res = calcularResultado(aplicarRegras(modelo, contextoDaInspecao(insp)), insp.respostas);
 
   const { rows: ctx } = await db.query<Record<string, string | null>>(
-    `SELECT v.placa, v.codigo, v.descricao, v.marca_modelo, u.nome AS unidade, a.nome AS area, at.nome AS atividade, us.nome AS inspetor
+    `SELECT v.placa, v.codigo, v.descricao, v.fabricante, v.modelo, u.nome AS unidade, a.nome AS area, at.nome AS atividade, us.nome AS inspetor
      FROM inspecoes i
      JOIN veiculos v ON v.id = i.veiculo_id JOIN unidades u ON u.id = i.unidade_id
      JOIN areas a ON a.id = i.area_id JOIN atividades at ON at.id = i.atividade_id
@@ -43,7 +43,7 @@ export async function gerarRelatorioPdf(db: Db, insp: Inspecao): Promise<Buffer>
   const linha = (rotulo: string, valor: string | null | undefined) =>
     doc.fillColor(CINZA).font("Helvetica").text(`${rotulo}: `, { continued: true }).fillColor("#111").font("Helvetica-Bold").text(valor ?? "—");
   doc.fontSize(10);
-  linha("Veículo", [c.placa ?? c.codigo, c.descricao, c.marca_modelo].filter(Boolean).join(" · "));
+  linha("Veículo", [c.placa ?? c.codigo, c.descricao, [c.fabricante, c.modelo].filter(Boolean).join(" ")].filter(Boolean).join(" · "));
   linha("Unidade / área", `${c.unidade ?? "—"} · ${c.area ?? "—"}`);
   linha("Atividade", c.atividade);
   linha("Inspetor", c.inspetor);

@@ -142,4 +142,73 @@ CREATE TABLE auditoria (
 CREATE INDEX auditoria_entidade ON auditoria (entidade, entidade_id);
 `,
   ],
+
+  [
+    "002_nucleo_configuravel",
+    `
+-- Perfis: admin e inspetor (RBAC por permissão no código). gestor do MVP vira admin.
+UPDATE usuarios SET papel = 'admin' WHERE papel = 'gestor';
+ALTER TABLE usuarios DROP CONSTRAINT usuarios_papel_check;
+ALTER TABLE usuarios ADD CONSTRAINT usuarios_papel_check CHECK (papel IN ('admin','inspetor'));
+ALTER TABLE usuarios ADD COLUMN demo boolean NOT NULL DEFAULT false;
+
+-- Operação: marca de demonstração e UF opcional.
+ALTER TABLE unidades ALTER COLUMN uf DROP NOT NULL;
+ALTER TABLE unidades ADD COLUMN demo boolean NOT NULL DEFAULT false;
+ALTER TABLE areas ADD COLUMN demo boolean NOT NULL DEFAULT false;
+ALTER TABLE atividades ADD COLUMN demo boolean NOT NULL DEFAULT false;
+ALTER TABLE tipos_veiculo ADD COLUMN ativo boolean NOT NULL DEFAULT true;
+
+-- Atributos técnicos configuráveis (sem coluna fixa por tipo de veículo).
+CREATE TABLE atributos_veiculo (
+  id uuid PRIMARY KEY,
+  codigo text NOT NULL UNIQUE,
+  nome text NOT NULL,
+  tipo text NOT NULL CHECK (tipo IN ('texto','numero','booleano','lista')),
+  opcoes text[] NOT NULL DEFAULT '{}',
+  unidade_medida text,
+  tipo_veiculo_ids uuid[] NOT NULL DEFAULT '{}',
+  obrigatorio boolean NOT NULL DEFAULT false,
+  ordem int NOT NULL DEFAULT 0,
+  ativo boolean NOT NULL DEFAULT true
+);
+
+-- Veículo: fabricante/modelo separados, empresa, status e atributos.
+ALTER TABLE veiculos ADD COLUMN fabricante text NOT NULL DEFAULT '';
+ALTER TABLE veiculos ADD COLUMN modelo text NOT NULL DEFAULT '';
+ALTER TABLE veiculos ADD COLUMN empresa text;
+ALTER TABLE veiculos ADD COLUMN status text NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','inativo'));
+ALTER TABLE veiculos ADD COLUMN atributos jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE veiculos ADD COLUMN demo boolean NOT NULL DEFAULT false;
+UPDATE veiculos SET modelo = marca_modelo;
+ALTER TABLE veiculos DROP COLUMN marca_modelo;
+ALTER TABLE veiculos ALTER COLUMN descricao SET DEFAULT '';
+ALTER TABLE veiculos ALTER COLUMN criado_em SET DEFAULT now();
+ALTER TABLE veiculos ALTER COLUMN atualizado_em SET DEFAULT now();
+ALTER TABLE veiculos ADD CONSTRAINT veiculos_placa_ou_codigo CHECK (placa IS NOT NULL OR codigo IS NOT NULL);
+
+-- Modelo: ciclo rascunho → publicada → arquivada; regra de aplicabilidade em JSON.
+ALTER TABLE modelos_checklist ADD COLUMN status text NOT NULL DEFAULT 'publicada' CHECK (status IN ('rascunho','publicada','arquivada'));
+ALTER TABLE modelos_checklist ADD COLUMN aplicavel jsonb;
+UPDATE modelos_checklist SET aplicavel = jsonb_build_object(
+  'tipoVeiculoIds', to_jsonb(tipo_veiculo_ids), 'areaIds', to_jsonb(area_ids), 'atividadeIds', to_jsonb(atividade_ids), 'atributos', '[]'::jsonb);
+ALTER TABLE modelos_checklist ALTER COLUMN aplicavel SET NOT NULL;
+ALTER TABLE modelos_checklist DROP COLUMN tipo_veiculo_ids;
+ALTER TABLE modelos_checklist DROP COLUMN area_ids;
+ALTER TABLE modelos_checklist DROP COLUMN atividade_ids;
+ALTER TABLE modelos_checklist DROP COLUMN ativo;
+ALTER TABLE modelos_checklist ADD COLUMN demo boolean NOT NULL DEFAULT false;
+ALTER TABLE modelos_checklist ADD COLUMN publicada_em timestamptz;
+ALTER TABLE modelos_checklist ADD COLUMN publicada_por uuid REFERENCES usuarios(id);
+UPDATE modelos_checklist SET publicada_em = criado_em WHERE status = 'publicada';
+-- No máximo um rascunho aberto por modelo.
+CREATE UNIQUE INDEX modelos_um_rascunho ON modelos_checklist (id) WHERE status = 'rascunho';
+
+-- Retrato dos atributos do veículo no momento da inspeção (regras usam este).
+ALTER TABLE inspecoes ADD COLUMN atributos_veiculo jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE inspecoes ADD COLUMN tipo_veiculo_id uuid REFERENCES tipos_veiculo(id);
+UPDATE inspecoes i SET tipo_veiculo_id = v.tipo_veiculo_id FROM veiculos v WHERE v.id = i.veiculo_id;
+ALTER TABLE inspecoes ALTER COLUMN tipo_veiculo_id SET NOT NULL;
+`,
+  ],
 ];

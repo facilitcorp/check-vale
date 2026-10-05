@@ -4,10 +4,11 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { ZodError } from "zod";
-import type { Papel } from "@checkvale/shared";
+import { pode, type Papel, type Permissao } from "@checkvale/shared";
 import type { Armazenamento } from "./armazenamento";
 import type { Config } from "./config";
 import type { Db } from "./db";
+import { rotasAdmin } from "./rotas/admin";
 import { rotasAuth } from "./rotas/auth";
 import { rotasCatalogo } from "./rotas/catalogo";
 import { rotasEvidencias } from "./rotas/evidencias";
@@ -32,12 +33,14 @@ declare module "fastify" {
     db: Db;
     armazenamento: Armazenamento;
     autenticar: (req: FastifyRequest, rep: FastifyReply) => Promise<void>;
+    /** Hook que exige a permissão (RBAC). Usar depois de autenticar. */
+    exigir: (p: Permissao) => (req: FastifyRequest) => Promise<void>;
     auditar: (req: FastifyRequest, acao: string, entidade: string, entidadeId: string | null, dados?: unknown) => Promise<void>;
   }
 }
 
 export class ErroHttp extends Error {
-  constructor(public status: number, public codigo: string, mensagem: string) {
+  constructor(public status: number, public codigo: string, mensagem: string, public erros?: string[]) {
     super(mensagem);
   }
 }
@@ -65,6 +68,10 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
     }
   });
 
+  app.decorate("exigir", (p: Permissao) => async (req: FastifyRequest) => {
+    if (!pode(req.user.papel, p)) throw new ErroHttp(403, "proibido", "Seu perfil não tem acesso a esta função.");
+  });
+
   app.decorate("auditar", async (req: FastifyRequest, acao: string, entidade: string, entidadeId: string | null, dados?: unknown) => {
     const usuarioId = (req.user as Sessao | undefined)?.sub ?? null;
     await db.query(`INSERT INTO auditoria (usuario_id, acao, entidade, entidade_id, dados, ip) VALUES ($1,$2,$3,$4,$5,$6)`, [
@@ -76,7 +83,8 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
   app.addContentTypeParser(["image/jpeg", "image/png", "image/webp"], { parseAs: "buffer" }, (_req, body, done) => done(null, body));
 
   app.setErrorHandler((err, req, rep) => {
-    if (err instanceof ErroHttp) return rep.status(err.status).send({ erro: err.codigo, mensagem: err.message });
+    if (err instanceof ErroHttp) return rep.status(err.status).send({ erro: err.codigo, mensagem: err.message, ...(err.erros ? { erros: err.erros } : {}) });
+    if ((err as { code?: string }).code === "23505") return rep.status(409).send({ erro: "ja_existe", mensagem: "Já existe um cadastro com esses dados (código, e-mail ou placa repetido)." });
     if (err instanceof ZodError)
       return rep.status(400).send({ erro: "dados_invalidos", mensagem: err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
     const status = (err as { statusCode?: number }).statusCode;
@@ -98,6 +106,7 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
     await privado.register(rotasInspecoes);
     await privado.register(rotasSync);
     await privado.register(rotasEvidencias);
+    await privado.register(rotasAdmin, { prefix: "/admin" });
   }, { prefix: "/api" });
 
   return app;

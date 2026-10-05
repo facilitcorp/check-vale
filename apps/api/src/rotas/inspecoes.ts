@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { Id } from "@checkvale/shared";
+import { Id, pode, type Papel } from "@checkvale/shared";
 import { ErroHttp } from "../app";
 import { carregarInspecoes } from "../mapeamento";
 import { gerarRelatorioPdf } from "../relatorio";
@@ -24,7 +24,7 @@ export const rotasInspecoes: FastifyPluginAsync = async (app) => {
     const id = Id.parse(req.params.id);
     const [insp] = await carregarInspecoes(app.db, "id = $1", [id]);
     if (!insp) throw new ErroHttp(404, "nao_encontrada", "Inspeção não encontrada (ainda não sincronizada?).");
-    if (insp.inspetorId !== req.user.sub && req.user.papel === "inspetor") throw new ErroHttp(403, "proibido", "Sem acesso a esta inspeção.");
+    if (insp.inspetorId !== req.user.sub && !pode(req.user.papel, "inspecao:ver_todas")) throw new ErroHttp(403, "proibido", "Sem acesso a esta inspeção.");
     const pdf = await gerarRelatorioPdf(app.db, insp);
     await app.auditar(req, "relatorio.gerar", "inspecao", id);
     return rep

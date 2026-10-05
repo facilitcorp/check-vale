@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { Id } from "@checkvale/shared";
+import { Id, pode, type Papel } from "@checkvale/shared";
 import { ErroHttp } from "../app";
 
 interface LinhaEv { id: string; inspecao_id: string; mime: string; bytes: number; arquivo_chave: string | null; inspetor_id: string }
@@ -12,7 +12,7 @@ export const rotasEvidencias: FastifyPluginAsync = async (app) => {
     const ev = rows[0];
     // Registrar os metadados (via /sync) antes de enviar o arquivo; 404 aqui = o app tenta de novo depois.
     if (!ev) throw new ErroHttp(404, "evidencia_nao_registrada", "Evidência ainda não registrada.");
-    if (ev.inspetor_id !== sub && papel === "inspetor") throw new ErroHttp(403, "proibido", "Sem acesso a esta evidência.");
+    if (ev.inspetor_id !== sub && !pode(papel as Papel, "inspecao:ver_todas")) throw new ErroHttp(403, "proibido", "Sem acesso a esta evidência.");
     return ev;
   }
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { CategoriaChecklist, Criticidade, ModeloChecklist } from "@checkvale/shared";
+import { SEM_RESTRICAO, type CategoriaChecklist, type Criticidade, type DefinicaoAtributo, type ModeloChecklist, type RegraAplicabilidade } from "@checkvale/shared";
 
 /** UUID determinístico (formato v5) a partir de um nome — semente estável entre execuções. */
 export function idDe(nome: string): string {
@@ -9,10 +9,10 @@ export function idDe(nome: string): string {
 }
 
 /**
- * Dados de DEMONSTRAÇÃO para desenvolvimento e homologação.
- * Em produção, o catálogo é cadastrado pela operação (não por código).
+ * Dados de DEMONSTRAÇÃO (gravados com demo = true). Não representam complexos,
+ * regras ou checklists oficiais: em produção tudo é cadastrado pelo ADMIN.
  */
-export const UNIDADES = [{ id: idDe("unidade:carajas"), nome: "Complexo Carajás", uf: "PA" }];
+export const UNIDADES = [{ id: idDe("unidade:demo"), nome: "Complexo DEMO", uf: null as string | null }];
 
 export const AREAS = [
   { id: idDe("area:operacional"), nome: "Área operacional" },
@@ -34,7 +34,13 @@ export const TIPOS_VEICULO = [
   { id: idDe("tipo:caminhao"), codigo: "caminhao", nome: "Caminhões", ordem: 5 },
 ];
 
-type ItemSemente = [titulo: string, descricao: string, criticidade?: Criticidade, permiteNaoAplica?: boolean];
+type ItemSemente = [titulo: string, descricao: string, criticidade?: Criticidade, permiteNaoAplica?: boolean, aplicavel?: Partial<RegraAplicabilidade>];
+
+export const ATRIBUTOS_DEMO: Omit<DefinicaoAtributo, "id">[] = [
+  { codigo: "tipo_freio", nome: "Tipo de freio", tipo: "lista", opcoes: ["Hidráulico", "Pneumático"], unidadeMedida: null, tipoVeiculoIds: [], obrigatorio: false, ordem: 1, ativo: true },
+  { codigo: "lotacao", nome: "Lotação", tipo: "numero", opcoes: [], unidadeMedida: "passageiros", tipoVeiculoIds: [], obrigatorio: false, ordem: 2, ativo: true },
+  { codigo: "possui_giroflex", nome: "Possui giroflex", tipo: "booleano", opcoes: [], unidadeMedida: null, tipoVeiculoIds: [], obrigatorio: false, ordem: 3, ativo: true },
+];
 
 const CATEGORIAS: [codigo: string, nome: string, icone: string, itens: ItemSemente[]][] = [
   ["identificacao", "Identificação do veículo", "id-card", [
@@ -68,7 +74,8 @@ const CATEGORIAS: [codigo: string, nome: string, icone: string, itens: ItemSemen
     ["Freio de estacionamento", "Segura o veículo em rampa.", "critica", false],
     ["Luz de alerta de freio", "Apaga após a partida.", "alta", false],
     ["Discos, pastilhas e lonas", "Sem desgaste além do limite.", "alta", false],
-    ["Sistema pneumático", "Sem vazamentos e pressão adequada.", "critica"],
+    // Exemplo de regra: só aparece para veículo com freio pneumático.
+    ["Sistema pneumático", "Sem vazamentos e pressão adequada.", "critica", false, { atributos: [{ atributo: "tipo_freio", operador: "igual", valor: "Pneumático" }] }],
   ]],
   ["pneus", "Pneus e rodas", "tire", [
     ["Sulco dos pneus", "Acima de 1,6 mm (TWI) em todos os pneus.", "critica", false],
@@ -83,7 +90,7 @@ const CATEGORIAS: [codigo: string, nome: string, icone: string, itens: ItemSemen
     ["Luz de freio", "Acendem ao frear, incluindo brake light.", "critica", false],
     ["Setas e pisca-alerta", "Funcionando nos quatro cantos.", "alta", false],
     ["Luz de ré e alarme sonoro de ré", "Acionam ao engatar a ré.", "alta", false],
-    ["Giroflex / sinalizador rotativo", "Instalado e funcionando.", "media"],
+    ["Giroflex / sinalizador rotativo", "Instalado e funcionando.", "media", false, { atributos: [{ atributo: "possui_giroflex", operador: "igual", valor: true }] }],
     ["Iluminação lateral", "Funcionando em toda a lateral.", "media"],
   ]],
   ["cabine", "Cabine e segurança", "shield", [
@@ -126,7 +133,8 @@ export function modeloPadrao(): ModeloChecklist {
     nome,
     icone,
     ordem: ci + 1,
-    itens: itens.map(([titulo, descricao, criticidade, permiteNaoAplica], ii) => ({
+    aplicavel: SEM_RESTRICAO,
+    itens: itens.map(([titulo, descricao, criticidade, permiteNaoAplica, aplicavel], ii) => ({
       id: idDe(`item:${codigo}:${ii + 1}`),
       codigo: `${codigo}.${ii + 1}`,
       titulo,
@@ -134,23 +142,22 @@ export function modeloPadrao(): ModeloChecklist {
       ordem: ii + 1,
       permiteNaoAplica: permiteNaoAplica ?? true,
       criticidadeSugerida: criticidade ?? null,
+      aplicavel: { ...SEM_RESTRICAO, ...aplicavel },
     })),
   }));
   return {
     id: idDe("modelo:padrao"),
-    nome: "Checklist de mobilização — padrão",
+    nome: "Checklist de mobilização (DEMO)",
     versao: 1,
-    tipoVeiculoIds: [],
-    areaIds: [],
-    atividadeIds: [],
+    aplicavel: SEM_RESTRICAO,
     categorias,
   };
 }
 
 export const VEICULOS_DEMO = [
-  { placa: "OWQ3A15", descricao: "Caminhonete", marcaModelo: "Ford Ranger", tipo: "leve" },
-  { placa: "RTY4B22", descricao: "Caminhão pipa", marcaModelo: "Mercedes-Benz Atego", tipo: "caminhao" },
-  { placa: null, codigo: "PQO1C83", descricao: "Escavadeira", marcaModelo: "Komatsu PC200", tipo: "maquina" },
-  { placa: "JHK8D91", descricao: "Van", marcaModelo: "Mercedes-Benz Sprinter", tipo: "van" },
-  { placa: "BVL2E77", descricao: "Ônibus", marcaModelo: "Marcopolo G7", tipo: "onibus" },
+  { placa: "OWQ3A15", descricao: "Caminhonete", fabricante: "Ford", modelo: "Ranger", tipo: "leve", atributos: { tipo_freio: "Hidráulico", possui_giroflex: true } },
+  { placa: "RTY4B22", descricao: "Caminhão pipa", fabricante: "Mercedes-Benz", modelo: "Atego", tipo: "caminhao", atributos: { tipo_freio: "Pneumático" } },
+  { placa: null, codigo: "PQO1C83", descricao: "Escavadeira", fabricante: "Komatsu", modelo: "PC200", tipo: "maquina", atributos: {} },
+  { placa: "JHK8D91", descricao: "Van", fabricante: "Mercedes-Benz", modelo: "Sprinter", tipo: "van", atributos: { tipo_freio: "Hidráulico", lotacao: 15 } },
+  { placa: "BVL2E77", descricao: "Ônibus", fabricante: "Marcopolo", modelo: "G7", tipo: "onibus", atributos: { tipo_freio: "Pneumático", lotacao: 44 } },
 ];

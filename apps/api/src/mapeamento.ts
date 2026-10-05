@@ -1,5 +1,8 @@
-import type { Evidencia, Inspecao, ModeloChecklist, Resposta, Veiculo } from "@checkvale/shared";
+import { SEM_RESTRICAO, type Area, type Atividade, type CategoriaChecklist, type DefinicaoAtributo, type TipoVeiculo, type Unidade, type Evidencia, type Inspecao, type ModeloChecklist, type RegraAplicabilidade, type Resposta, type Veiculo } from "@checkvale/shared";
 import type { Db } from "./db";
+
+const json = <T>(v: unknown): T => (typeof v === "string" ? JSON.parse(v) : v) as T;
+const regra = (r: Partial<RegraAplicabilidade> | undefined): RegraAplicabilidade => ({ ...SEM_RESTRICAO, ...r });
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : new Date(String(v)).toISOString());
 const isoOuNull = (v: unknown) => (v == null ? null : iso(v));
@@ -9,21 +12,29 @@ export const veiculoDeLinha = (r: Record<string, unknown>): Veiculo => ({
   placa: (r.placa as string | null) ?? null,
   codigo: (r.codigo as string | null) ?? null,
   tipoVeiculoId: r.tipo_veiculo_id as string,
+  fabricante: r.fabricante as string,
+  modelo: r.modelo as string,
   descricao: r.descricao as string,
-  marcaModelo: r.marca_modelo as string,
+  empresa: (r.empresa as string | null) ?? null,
   unidadeId: (r.unidade_id as string | null) ?? null,
+  status: r.status as Veiculo["status"],
+  atributos: json(r.atributos),
+  demo: r.demo as boolean,
   criadoEm: iso(r.criado_em),
   atualizadoEm: iso(r.atualizado_em),
 });
 
+/** Normaliza o JSON gravado (tolera campos novos ausentes em versões antigas). */
 export const modeloDeLinha = (r: Record<string, unknown>): ModeloChecklist => ({
   id: r.id as string,
   nome: r.nome as string,
   versao: r.versao as number,
-  tipoVeiculoIds: r.tipo_veiculo_ids as string[],
-  areaIds: r.area_ids as string[],
-  atividadeIds: r.atividade_ids as string[],
-  categorias: (typeof r.categorias === "string" ? JSON.parse(r.categorias) : r.categorias) as ModeloChecklist["categorias"],
+  aplicavel: regra(json(r.aplicavel)),
+  categorias: json<CategoriaChecklist[]>(r.categorias).map((c) => ({
+    ...c,
+    aplicavel: regra(c.aplicavel),
+    itens: c.itens.map((i) => ({ ...i, aplicavel: regra(i.aplicavel) })),
+  })),
 });
 
 export const respostaDeLinha = (r: Record<string, unknown>): Resposta => ({
@@ -61,6 +72,8 @@ export async function carregarInspecoes(db: Db, where: string, params: unknown[]
     atividadeId: r.atividade_id as string,
     veiculoId: r.veiculo_id as string,
     inspetorId: r.inspetor_id as string,
+    tipoVeiculoId: r.tipo_veiculo_id as string,
+    atributosVeiculo: json(r.atributos_veiculo),
     status: r.status as Inspecao["status"],
     iniciadaEm: iso(r.iniciada_em),
     concluidaEm: isoOuNull(r.concluida_em),
@@ -71,4 +84,33 @@ export async function carregarInspecoes(db: Db, where: string, params: unknown[]
 export async function carregarModelo(db: Db, id: string, versao: number): Promise<ModeloChecklist | null> {
   const { rows } = await db.query(`SELECT * FROM modelos_checklist WHERE id = $1 AND versao = $2`, [id, versao]);
   return rows[0] ? modeloDeLinha(rows[0]) : null;
+}
+
+export const unidadeDeLinha = (r: Record<string, unknown>): Unidade => ({
+  id: r.id as string, nome: r.nome as string, uf: ((r.uf as string | null) ?? null)?.trim() || null, ativo: r.ativo as boolean, demo: r.demo as boolean,
+});
+export const areaDeLinha = (r: Record<string, unknown>): Area => ({
+  id: r.id as string, unidadeId: (r.unidade_id as string | null) ?? null, nome: r.nome as string, ativo: r.ativo as boolean, demo: r.demo as boolean,
+});
+export const atividadeDeLinha = (r: Record<string, unknown>): Atividade => ({
+  id: r.id as string, nome: r.nome as string, ativo: r.ativo as boolean, demo: r.demo as boolean,
+});
+export const tipoDeLinha = (r: Record<string, unknown>): TipoVeiculo => ({
+  id: r.id as string, codigo: r.codigo as string, nome: r.nome as string, ordem: r.ordem as number, ativo: r.ativo as boolean,
+});
+export const atributoDeLinha = (r: Record<string, unknown>): DefinicaoAtributo => ({
+  id: r.id as string,
+  codigo: r.codigo as string,
+  nome: r.nome as string,
+  tipo: r.tipo as DefinicaoAtributo["tipo"],
+  opcoes: r.opcoes as string[],
+  unidadeMedida: (r.unidade_medida as string | null) ?? null,
+  tipoVeiculoIds: r.tipo_veiculo_ids as string[],
+  obrigatorio: r.obrigatorio as boolean,
+  ordem: r.ordem as number,
+  ativo: r.ativo as boolean,
+});
+
+export async function carregarAtributos(db: Db): Promise<DefinicaoAtributo[]> {
+  return (await db.query(`SELECT * FROM atributos_veiculo ORDER BY ordem, nome`)).rows.map(atributoDeLinha);
 }
