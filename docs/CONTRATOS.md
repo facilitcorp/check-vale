@@ -9,6 +9,7 @@ Fonte da verdade: `packages/shared/src` (`dominio.ts`, `api.ts`, `resultado.ts`,
 | POST | `/auth/login` | `{email, senha}` → `{token, expiraEm, usuario}` |
 | GET | `/auth/eu` | usuário da sessão |
 | GET | `/catalogo` | unidades, áreas, atividades, tipos de veículo, modelos (ETag) |
+| GET | `/catalogo/modelos/:id/versoes/:v` | versão exata (publicada ou arquivada) de uma inspeção recebida; rascunho → 404 |
 | GET | `/veiculos?desde=` | veículos alterados desde o cursor |
 | GET | `/inspecoes?desde=` | inspeções do inspetor alteradas desde o cursor |
 | POST | `/sync` | lote de até 100 operações (`veiculo.salvar`, `inspecao.salvar`, `evidencia.registrar`) |
@@ -29,7 +30,7 @@ repositorioInspecao.concluir(id)                       // tela 9 → 10
 calcularResultado(modelo, inspecao.respostas)          // telas 9–12 (shared)
 ```
 
-Modelo da inspeção: `useCatalogo()` → `catalogo.modelos.find(m => m.id === i.modeloId && m.versao === i.modeloVersao)`.
+Modelo da inspeção: `useChecklistDaInspecao(id)` (`dados/ganchos.ts`), que lê a versão exata em `banco.modelos`. O sync guarda toda versão do catálogo e baixa as que faltam para as inspeções do aparelho.
 
 ## Rotas reservadas do app (telas 5–12)
 
