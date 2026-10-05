@@ -1,5 +1,6 @@
 import { Resposta as RespostaSchema, type Evidencia, type Inspecao, type Resposta, type Veiculo } from "@checkvale/shared";
 import { banco } from "./banco";
+import { comprimirFoto } from "../lib/imagem";
 import { enfileirar } from "./fila";
 
 /**
@@ -49,8 +50,9 @@ export const repositorioInspecao = {
     return gravar({ ...i, respostas: [...i.respostas.filter((r) => r.itemId !== nova.itemId), nova] });
   },
 
-  /** Guarda a foto no aparelho e registra os metadados. Devolve a evidência para usar em evidenciaIds. */
-  async adicionarEvidencia(inspecaoId: string, itemId: string, arquivo: Blob): Promise<Evidencia> {
+  /** Comprime, guarda a foto no aparelho e registra os metadados. Devolve a evidência para usar em evidenciaIds. */
+  async adicionarEvidencia(inspecaoId: string, itemId: string, original: Blob): Promise<Evidencia> {
+    const arquivo = await comprimirFoto(original);
     const mime = arquivo.type as Evidencia["mime"];
     if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) throw new Error("Formato de imagem não suportado.");
     const evidencia: Evidencia = { id: crypto.randomUUID(), inspecaoId, itemId, mime, bytes: arquivo.size, capturadaEm: agora(), url: null };

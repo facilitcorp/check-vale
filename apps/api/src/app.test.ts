@@ -165,3 +165,11 @@ describe("inspeção ponta a ponta via sync", () => {
     expect(s.resultados[2]!.erro).toMatch(/veículo/);
   });
 });
+
+describe("segurança", () => {
+  it("responde com cabeçalhos de segurança", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/saude" });
+    expect(r.headers["x-content-type-options"]).toBe("nosniff");
+    expect(r.headers["content-security-policy"]).toContain("default-src 'none'");
+  });
+});

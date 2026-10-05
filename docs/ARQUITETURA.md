@@ -31,7 +31,8 @@ SQL puro sobre uma interface mínima (`Db.query/transacao`). Em dev/teste roda e
 - Senha com bcrypt; login com limite de 10 tentativas/min por IP; mesma resposta para e-mail inexistente e senha errada.
 - JWT (`JWT_SECRET` obrigatório em produção). Rotas privadas exigem token. Inspetor só lê/escreve as próprias inspeções.
 - Validação de toda entrada com zod (mesmo schema do app). Foto: só jpeg/png/webp, até 15 MB, tipo conferido com o registrado.
-- Logs com `authorization` mascarado.
+- Logs com `authorization` mascarado. Cabeçalhos de segurança (helmet, CSP `default-src none`).
+- Operação recusada pelo servidor fica marcada na fila e aparece para o inspetor na tela inicial (nunca some em silêncio).
 
 ## Regras de resultado (MVP — validar com o produto)
 

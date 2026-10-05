@@ -2,7 +2,7 @@ import { calcularResultado } from "@checkvale/shared";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight, ClipboardCheck, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { Botao, Cabecalho, Tela } from "../componentes/ui";
+import { Aviso, Botao, Cabecalho, Tela } from "../componentes/ui";
 import { banco } from "../dados/banco";
 import { useCatalogo, useVeiculos } from "../dados/ganchos";
 import { sair, useSessao } from "../dados/sessao";
@@ -13,6 +13,8 @@ export function Inicio() {
   const { usuario } = useSessao();
   const catalogo = useCatalogo();
   const veiculos = useVeiculos();
+  // Operações que o servidor recusou de vez (ex.: placa já cadastrada por outro aparelho): o inspetor precisa ver.
+  const rejeitadas = useLiveQuery(() => banco.fila.where("estado").equals("rejeitada").toArray(), []);
   const inspecoes = useLiveQuery(() => banco.inspecoes.orderBy("iniciadaEm").reverse().limit(30).toArray(), []);
 
   const veiculo = (id: string) => veiculos?.find((v) => v.id === id);
@@ -33,6 +35,16 @@ export function Inicio() {
           <span className="inline-flex items-center gap-2"><ClipboardCheck size={20} /> Nova verificação</span>
         </Botao>
         {catalogo === null && <p className="mt-3 text-center text-sm text-texto-suave">Baixando dados para uso offline… conecte-se à internet.</p>}
+
+        {!!rejeitadas?.length && (
+          <div className="mt-4">
+            <Aviso tom="erro">
+              <p className="font-semibold">{rejeitadas.length} registro(s) não aceito(s) pelo servidor:</p>
+              <ul className="mt-1 list-disc pl-5">{rejeitadas.slice(0, 5).map((o) => <li key={o.seq}>{o.erro}</li>)}</ul>
+              <p className="mt-1">Procure o gestor da operação.</p>
+            </Aviso>
+          </div>
+        )}
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-texto-suave">Verificações</h2>
         {inspecoes?.length === 0 && <p className="mt-3 text-sm text-texto-suave">Nenhuma verificação ainda.</p>}

@@ -23,7 +23,7 @@ Telas NUNCA chamam a API para gravar. Usam `apps/web/src/dados/repositorio.ts`:
 repositorioInspecao.criar(ctx)                         // tela 4
 repositorioInspecao.obter(id) / useInspecao(id)        // leitura reativa (dados/ganchos.ts)
 repositorioInspecao.salvarResposta(id, resposta)       // telas 6 e 8 (valida NC: descrição + foto)
-repositorioInspecao.adicionarEvidencia(id, itemId, blob) → Evidencia   // tela 7; use evidencia.id em evidenciaIds
+repositorioInspecao.adicionarEvidencia(id, itemId, blob) → Evidencia   // tela 7; já comprime (~300 KB); use evidencia.id em evidenciaIds
 repositorioInspecao.arquivoEvidencia(evidenciaId)      // miniatura
 repositorioInspecao.concluir(id)                       // tela 9 → 10
 calcularResultado(modelo, inspecao.respostas)          // telas 9–12 (shared)

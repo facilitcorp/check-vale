@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -50,6 +51,8 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
 
   app.decorate("db", db);
   app.decorate("armazenamento", armazenamento);
+  // API só serve JSON/PDF/imagem: CSP fechada; foto pode ser lida pelo app (cross-origin em dev).
+  await app.register(helmet, { contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } }, crossOriginResourcePolicy: { policy: "same-site" } });
   await app.register(cors, { origin: cfg.origensCors, credentials: false });
   await app.register(rateLimit, { global: false });
   await app.register(jwt, { secret: cfg.jwtSecret, sign: { expiresIn: cfg.jwtValidade } });
