@@ -55,7 +55,7 @@ ok("3 fabricante + modelo", ve.j.fabricante === "Volvo" && ve.j.modelo === "FH 5
 ok("3 atributos gravados com tipo certo", ve.j.atributos.eixos === 3 && ve.j.atributos.possui_reboque === true && ve.j.atributos.freio_demo === "ar", JSON.stringify(ve.j.atributos));
 const frota = (await req(A, "GET", "/admin/veiculos")).j;
 ok("3 selo DEMO nos veículos de demonstração (semente)", frota.some((v) => v.demo === true), `demo=${frota.filter((v) => v.demo).length} de ${frota.length}`);
-ok("3 veículo criado pelo admin marcado DEMO", ve.j.demo === true, `demo=${ve.j.demo} (contrato não aceita demo na entrada)`);
+ok("3 veículo do admin não vira DEMO (DEMO é só da semente)", ve.j.demo !== true, `demo=${ve.j.demo}`);
 
 // 4. Usuários
 const ui = await req(A, "POST", "/admin/usuarios", { nome: "Inspetor Aceite", email: "inspetor.aceite@checkvale.dev", papel: "inspetor", ativo: true, senha: "aceite-2026" });
@@ -130,6 +130,6 @@ const lista = Array.isArray(vI.j) ? vI.j : vI.j?.veiculos ?? vI.j?.itens ?? [];
 ok("7 inspetor recebe os veículos", vI.s === 200 && lista.some((v) => v.id === v1.j.id), `${vI.s} n=${lista.length}`);
 ok("7 dados DEMO da semente seguem DEMO", lista.some((v) => v.demo) && catI.j.unidades.some((x) => x.demo), `veiculos demo=${lista.filter((v) => v.demo).length} unidades demo=${catI.j.unidades.filter((x) => x.demo).length}`);
 const modelosAdm = (await req(A, "GET", "/admin/modelos")).j;
-ok("7 modelo criado pelo admin marcado DEMO", modelosAdm.find((x) => x.id === m.j.id)?.demo === true, `demo=${modelosAdm.find((x) => x.id === m.j.id)?.demo}`);
+ok("7 modelo do admin não vira DEMO (DEMO é só da semente)", modelosAdm.find((x) => x.id === m.j.id)?.demo !== true, `demo=${modelosAdm.find((x) => x.id === m.j.id)?.demo}`);
 
 console.log(JSON.stringify({ res, ids: { unidade: u.j.id, area: ar.j.id, atividade: at.j.id, atTmp: atTmp.j.id, veiculo1: v1.j.id, veiculo2: v2.j.id, modelo: m.j.id, inspetor: ui.j.id } }, null, 1));

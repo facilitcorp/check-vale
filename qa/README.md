@@ -20,7 +20,7 @@ A saída é um JSON com PASSOU/FALHOU por passo e os ids criados.
 
 O script precisa de um banco zerado: rodar de novo no mesmo banco falha por código e placa repetidos.
 
-Resultado em `9b16340`: 34 de 36 verificações passaram. As 2 que falharam (marca DEMO em cadastro do Admin) foram aceitas para depois do MVP.
+DEMO não é campo de negócio: o contrato de criação não aceita `demo`, e o selo fica só nos dados da semente. O roteiro confere as duas coisas: a semente continua DEMO e o cadastro feito pelo Admin não vira DEMO (decisão do Paulo, 05/10/2026).
 
 ## Parte 2 — Inspetor + offline (lado do servidor)
 
