@@ -1,5 +1,6 @@
 import type {
   Atributos,
+  Inspecao,
   CondicaoAtributo,
   DefinicaoAtributo,
   ModeloChecklist,
@@ -19,6 +20,14 @@ export interface ContextoRegras {
   atividadeId: string;
   atributos: Atributos;
 }
+
+/** Contexto das regras a partir do retrato gravado na inspeção (igual no app e na API). */
+export const contextoDaInspecao = (i: Pick<Inspecao, "tipoVeiculoId" | "areaId" | "atividadeId" | "atributosVeiculo">): ContextoRegras => ({
+  tipoVeiculoId: i.tipoVeiculoId,
+  areaId: i.areaId,
+  atividadeId: i.atividadeId,
+  atributos: i.atributosVeiculo,
+});
 
 const norm = (v: ValorAtributo) => String(v).trim().toLowerCase();
 const preenchido = (v: ValorAtributo | undefined): v is ValorAtributo => v !== undefined && v !== null && String(v).trim() !== "";

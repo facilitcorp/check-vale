@@ -1,4 +1,4 @@
-import { calcularResultado } from "@checkvale/shared";
+import { aplicarRegras, calcularResultado, contextoDaInspecao } from "@checkvale/shared";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight, ClipboardCheck, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -52,7 +52,7 @@ export function Inicio() {
           {inspecoes?.map((i) => {
             const v = veiculo(i.veiculoId);
             const m = modelo(i.modeloId, i.modeloVersao);
-            const r = m ? calcularResultado(m, i.respostas) : null;
+            const r = m ? calcularResultado(aplicarRegras(m, contextoDaInspecao(i)), i.respostas) : null;
             const concluida = i.status === "concluida";
             return (
               <li key={i.id}>

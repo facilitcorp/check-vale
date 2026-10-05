@@ -250,7 +250,8 @@ export const Inspecao = z.object({
   atividadeId: Id,
   veiculoId: Id,
   inspetorId: Id,
-  /** Atributos do veículo no momento da inspeção (as regras usam este retrato, não o cadastro atual). */
+  /** Retrato do veículo no momento da inspeção: as regras usam ESTE, não o cadastro atual. */
+  tipoVeiculoId: Id,
   atributosVeiculo: Atributos,
   status: StatusInspecao,
   iniciadaEm: DataHora,

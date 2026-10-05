@@ -16,6 +16,9 @@ export interface NovaInspecao {
   atividadeId: string;
   veiculoId: string;
   inspetorId: string;
+  /** Retrato do veículo no início da inspeção (regras de aplicabilidade usam este). */
+  tipoVeiculoId: string;
+  atributosVeiculo: Inspecao["atributosVeiculo"];
 }
 
 const agora = () => new Date().toISOString();
@@ -80,7 +83,7 @@ export const repositorioVeiculo = {
   obter: (id: string) => banco.veiculos.get(id),
 
   /** Cadastro feito no app (inclusive offline). Placa normalizada em maiúsculas, sem traço. */
-  async salvar(dados: Omit<Veiculo, "id" | "criadoEm" | "atualizadoEm"> & { id?: string }): Promise<Veiculo> {
+  async salvar(dados: Omit<Veiculo, "id" | "demo" | "criadoEm" | "atualizadoEm"> & { id?: string }): Promise<Veiculo> {
     const placa = dados.placa ? dados.placa.toUpperCase().replace(/[^A-Z0-9]/g, "") : null;
     if (placa) {
       const outro = await banco.veiculos.where("placa").equals(placa).first();
@@ -91,6 +94,7 @@ export const repositorioVeiculo = {
       ...dados,
       id: dados.id ?? crypto.randomUUID(),
       placa,
+      demo: existente?.demo ?? false,
       criadoEm: existente?.criadoEm ?? agora(),
       atualizadoEm: agora(),
     };

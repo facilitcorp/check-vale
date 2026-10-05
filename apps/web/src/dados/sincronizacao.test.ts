@@ -5,7 +5,7 @@ import { repositorioInspecao, repositorioVeiculo } from "./repositorio";
 import { sincronizar } from "./sincronizacao";
 
 const uid = () => crypto.randomUUID();
-const ctx = { modeloId: uid(), modeloVersao: 1, unidadeId: uid(), areaId: uid(), atividadeId: uid(), veiculoId: uid(), inspetorId: uid() };
+const ctx = { modeloId: uid(), modeloVersao: 1, unidadeId: uid(), areaId: uid(), atividadeId: uid(), veiculoId: uid(), inspetorId: uid(), tipoVeiculoId: uid(), atributosVeiculo: {} };
 
 /** Servidor falso: aplica tudo, guarda o que recebeu. */
 function servidorFalso() {
@@ -55,8 +55,8 @@ describe("repositório + fila", () => {
   });
 
   it("placa repetida é recusada no aparelho", async () => {
-    await repositorioVeiculo.salvar({ placa: "abc-1d23", codigo: null, tipoVeiculoId: uid(), descricao: "Van", marcaModelo: "", unidadeId: null });
-    await expect(repositorioVeiculo.salvar({ placa: "ABC1D23", codigo: null, tipoVeiculoId: uid(), descricao: "Van", marcaModelo: "", unidadeId: null })).rejects.toThrow(/já cadastrada/);
+    await repositorioVeiculo.salvar({ placa: "abc-1d23", codigo: null, tipoVeiculoId: uid(), descricao: "Van", fabricante: "", modelo: "", empresa: null, status: "ativo", atributos: {}, unidadeId: null });
+    await expect(repositorioVeiculo.salvar({ placa: "ABC1D23", codigo: null, tipoVeiculoId: uid(), descricao: "Van", fabricante: "", modelo: "", empresa: null, status: "ativo", atributos: {}, unidadeId: null })).rejects.toThrow(/já cadastrada/);
   });
 });
 

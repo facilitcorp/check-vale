@@ -1,4 +1,4 @@
-import { escolherModelo } from "@checkvale/shared";
+import { escolherModelo, type Veiculo } from "@checkvale/shared";
 import { ChevronRight, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -24,16 +24,21 @@ export function SelecionarVeiculo() {
   const lista = useMemo(() => {
     const q = busca.trim().toUpperCase().replace(/[^A-Z0-9 ]/g, "");
     return (veiculos ?? [])
+      .filter((v) => v.status === "ativo")
       .filter((v) => !tipo || v.tipoVeiculoId === tipo)
-      .filter((v) => !q || [v.placa, v.codigo, v.descricao, v.marcaModelo].some((s) => s?.toUpperCase().includes(q)))
+      .filter((v) => !q || [v.placa, v.codigo, v.descricao, v.fabricante, v.modelo, v.empresa].some((s) => s?.toUpperCase().includes(q)))
       .sort((a, b) => (a.placa ?? a.codigo ?? "").localeCompare(b.placa ?? b.codigo ?? ""));
   }, [veiculos, tipo, busca]);
 
-  async function escolher(veiculoId: string, tipoVeiculoId: string) {
+  async function escolher(v: Veiculo) {
     if (!catalogo || !usuario) return;
-    const modelo = escolherModelo(catalogo.modelos, { tipoVeiculoId, areaId: ctx.areaId, atividadeId: ctx.atividadeId });
-    if (!modelo) return setErro("Não há checklist configurado para este tipo de veículo nesta área.");
-    const i = await repositorioInspecao.criar({ ...ctx, veiculoId, modeloId: modelo.id, modeloVersao: modelo.versao, inspetorId: usuario.id });
+    const regras = { tipoVeiculoId: v.tipoVeiculoId, areaId: ctx.areaId, atividadeId: ctx.atividadeId, atributos: v.atributos };
+    const modelo = escolherModelo(catalogo.modelos, regras);
+    if (!modelo) return setErro("Não há checklist publicado para este veículo nesta operação. Avise o administrador.");
+    const i = await repositorioInspecao.criar({
+      ...ctx, veiculoId: v.id, modeloId: modelo.id, modeloVersao: modelo.versao, inspetorId: usuario.id,
+      tipoVeiculoId: v.tipoVeiculoId, atributosVeiculo: v.atributos,
+    });
     navegar(`/inspecao/${i.id}`, { replace: true });
   }
 
@@ -66,14 +71,14 @@ export function SelecionarVeiculo() {
         <ul className="mt-3 divide-y divide-borda">
           {lista.map((v) => (
             <li key={v.id}>
-              <button onClick={() => void escolher(v.id, v.tipoVeiculoId)} className="flex w-full items-center gap-4 py-3 text-left active:bg-fundo">
+              <button onClick={() => void escolher(v)} className="flex w-full items-center gap-4 py-3 text-left active:bg-fundo">
                 <span className="flex h-14 w-16 items-center justify-center rounded-lg bg-marca-clara text-marca">
                   <IconeVeiculo codigo={tipos.find((t) => t.id === v.tipoVeiculoId)?.codigo} />
                 </span>
                 <span className="flex-1">
                   <span className="block font-bold">{v.placa ?? v.codigo}</span>
                   <span className="block text-sm text-texto-suave">{v.descricao}</span>
-                  <span className="block text-sm text-texto-suave">{v.marcaModelo}</span>
+                  <span className="block text-sm text-texto-suave">{[v.fabricante, v.modelo].filter(Boolean).join(" ")}{v.demo && <span className="ml-2 rounded bg-destaque/20 px-1.5 text-xs font-semibold text-texto">DEMO</span>}</span>
                 </span>
                 <ChevronRight size={18} className="text-texto-suave" />
               </button>
