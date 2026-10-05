@@ -11,6 +11,8 @@ interface Dependencias {
   fila: FilaSincronizacao;
   repo: RepositorioInspecao;
   marca: Marca;
+  /** Abre o PDF da verificação (API da fundação). Sem isso, o botão fica desabilitado. */
+  abrirRelatorio?: (verificacaoId: string) => void;
 }
 
 const Ctx = createContext<Dependencias | null>(null);
@@ -20,6 +22,7 @@ export function ProvedorInspecao(props: {
   banco: BancoLocal;
   fila: FilaSincronizacao;
   marca?: Marca;
+  abrirRelatorio?: (verificacaoId: string) => void;
   children: ReactNode;
 }) {
   const [deps] = useState<Dependencias>(() => ({
@@ -27,6 +30,7 @@ export function ProvedorInspecao(props: {
     fila: props.fila,
     repo: new RepositorioInspecao(props.banco, props.fila),
     marca: props.marca ?? MARCA_PADRAO,
+    abrirRelatorio: props.abrirRelatorio,
   }));
   return <Ctx.Provider value={deps}>{props.children}</Ctx.Provider>;
 }

@@ -30,6 +30,7 @@ export function TelaResultado() {
   const dados = useConcluida();
   const navegar = useNavigate();
   const { pendentes, online } = useEstadoFila();
+  const { abrirRelatorio } = useInspecao();
   const { verificacaoId = '' } = useParams();
   if (dados === undefined) return null;
   if (dados === null) return <Navigate to="/" replace />;
@@ -47,7 +48,11 @@ export function TelaResultado() {
             Ver detalhes
           </button>
           {/* O PDF é gerado pela API (fundação). Offline, ainda não existe no servidor. */}
-          <button className="botao botao--primario" disabled={!sincronizada} title="Disponível após enviar a verificação">
+          <button
+            className="botao botao--primario"
+            disabled={!sincronizada || !abrirRelatorio}
+            onClick={() => abrirRelatorio?.(v.id)}
+          >
             Gerar relatório (PDF)
           </button>
           {!sincronizada && <p className="dica centro">O relatório fica disponível quando a verificação for enviada.</p>}

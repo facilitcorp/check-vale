@@ -28,6 +28,7 @@ type Ouvinte = (estado: EstadoFila) => void;
 export class FilaSincronizacao {
   private ouvintes = new Set<Ouvinte>();
   private rodando = false;
+  private automatico = false;
   private ultimoErro?: string;
 
   constructor(
@@ -48,6 +49,7 @@ export class FilaSincronizacao {
       if (pendente) {
         await this.banco.fila.update(pendente.id, { operacao, rev: pendente.rev + 1 });
         await this.notificar();
+        this.tentarLogo();
         return;
       }
     }
@@ -61,6 +63,7 @@ export class FilaSincronizacao {
     };
     await this.banco.fila.add(item);
     await this.notificar();
+    this.tentarLogo();
   }
 
   /**
@@ -72,30 +75,38 @@ export class FilaSincronizacao {
     this.rodando = true;
     await this.notificar();
     try {
-      const itens = await this.banco.fila.orderBy('seq').toArray();
-      for (const item of itens) {
-        try {
-          let anexo: Blob | undefined;
-          if (item.operacao.tipo === 'evidencia.enviar') {
-            anexo = (await this.banco.evidencias.get(item.operacao.evidencia.id))?.blob;
-          }
-          await this.transporte.enviar(item.operacao, anexo);
-          await this.banco.transaction('rw', this.banco.fila, this.banco.evidencias, async () => {
-            // Se a tela regravou este item enquanto ele subia, mantém a versão nova na fila.
-            const atual = await this.banco.fila.get(item.id);
-            if (atual && atual.rev === item.rev) await this.banco.fila.delete(item.id);
+      // Repete até esvaziar: o que for gravado durante o envio também sobe.
+      let falhou = false;
+      let enviouAlgo = true;
+      while (!falhou && enviouAlgo) {
+        enviouAlgo = false;
+        const itens = await this.banco.fila.orderBy('seq').toArray();
+        for (const item of itens) {
+          try {
+            let anexo: Blob | undefined;
             if (item.operacao.tipo === 'evidencia.enviar') {
-              await this.banco.evidencias.update(item.operacao.evidencia.id, { enviada: true });
+              anexo = (await this.banco.evidencias.get(item.operacao.evidencia.id))?.blob;
             }
-          });
-          this.ultimoErro = undefined;
-        } catch (e) {
-          this.ultimoErro = e instanceof Error ? e.message : String(e);
-          await this.banco.fila.update(item.id, {
-            tentativas: item.tentativas + 1,
-            ultimoErro: this.ultimoErro,
-          });
-          break;
+            await this.transporte.enviar(item.operacao, anexo);
+            await this.banco.transaction('rw', this.banco.fila, this.banco.evidencias, async () => {
+              // Se a tela regravou este item enquanto ele subia, mantém a versão nova na fila.
+              const atual = await this.banco.fila.get(item.id);
+              if (atual && atual.rev === item.rev) await this.banco.fila.delete(item.id);
+              if (item.operacao.tipo === 'evidencia.enviar') {
+                await this.banco.evidencias.update(item.operacao.evidencia.id, { enviada: true });
+              }
+            });
+            this.ultimoErro = undefined;
+            enviouAlgo = true;
+          } catch (e) {
+            this.ultimoErro = e instanceof Error ? e.message : String(e);
+            await this.banco.fila.update(item.id, {
+              tentativas: item.tentativas + 1,
+              ultimoErro: this.ultimoErro,
+            });
+            falhou = true;
+            break;
+          }
         }
       }
     } finally {
@@ -120,6 +131,7 @@ export class FilaSincronizacao {
 
   /** Tenta subir ao voltar a rede e periodicamente. Retorna o "desligar". */
   iniciarAutomatico(intervaloMs = 30_000): () => void {
+    this.automatico = true;
     const tentar = () => {
       if (navigator.onLine) void this.processar();
     };
@@ -127,9 +139,15 @@ export class FilaSincronizacao {
     const timer = window.setInterval(tentar, intervaloMs);
     tentar();
     return () => {
+      this.automatico = false;
       window.removeEventListener('online', tentar);
       window.clearInterval(timer);
     };
+  }
+
+  /** Com sinal, não espera o próximo ciclo para subir o que acabou de ser gravado. */
+  private tentarLogo() {
+    if (this.automatico && navigator.onLine) setTimeout(() => void this.processar(), 1_000);
   }
 
   private async notificar() {
