@@ -131,7 +131,7 @@
 .opcao--nao_conforme .opcao__icone { background: var(--cor-ruim); }
 .opcao--conforme.opcao--ativa { border-color: var(--cor-bom); background: #ecf8f0; }
 .opcao--nao_conforme.opcao--ativa { border-color: var(--cor-ruim); background: #fdeeee; }
-.opcao--nao_se_aplica.opcao--ativa { border-color: var(--cor-na); background: #f1f4f6; }
+.opcao--nao_aplica.opcao--ativa { border-color: var(--cor-na); background: #f1f4f6; }
 
 .campo { display: grid; gap: 6px; margin-bottom: 16px; }
 .campo__rotulo { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 6px; }
