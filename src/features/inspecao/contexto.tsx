@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { ModeloChecklist, Verificacao } from '@/contracts/checklist';
+import type { ModeloChecklist, RecortarModelo, Verificacao } from '@/contracts/checklist';
 import type { BancoLocal } from '@/infra/offline/banco';
 import type { EstadoFila, FilaSincronizacao } from '@/infra/offline/fila';
 import { MARCA_PADRAO, type Marca } from '@/infra/branding/marca';
@@ -13,6 +13,7 @@ interface Dependencias {
   marca: Marca;
   /** Abre o PDF da verificação (API da fundação). Sem isso, o botão fica desabilitado. */
   abrirRelatorio?: (verificacaoId: string) => void;
+  recortar: RecortarModelo;
 }
 
 const Ctx = createContext<Dependencias | null>(null);
@@ -23,15 +24,21 @@ export function ProvedorInspecao(props: {
   fila: FilaSincronizacao;
   marca?: Marca;
   abrirRelatorio?: (verificacaoId: string) => void;
+  /** Regras de aplicabilidade (na integração: aplicarRegras + contextoDaInspecao). */
+  recortar?: RecortarModelo;
   children: ReactNode;
 }) {
-  const [deps] = useState<Dependencias>(() => ({
-    banco: props.banco,
-    fila: props.fila,
-    repo: new RepositorioInspecao(props.banco, props.fila),
-    marca: props.marca ?? MARCA_PADRAO,
-    abrirRelatorio: props.abrirRelatorio,
-  }));
+  const [deps] = useState<Dependencias>(() => {
+    const recortar = props.recortar ?? ((m: ModeloChecklist) => m);
+    return {
+      banco: props.banco,
+      fila: props.fila,
+      repo: new RepositorioInspecao(props.banco, props.fila, undefined, undefined, recortar),
+      marca: props.marca ?? MARCA_PADRAO,
+      abrirRelatorio: props.abrirRelatorio,
+      recortar,
+    };
+  });
   return <Ctx.Provider value={deps}>{props.children}</Ctx.Provider>;
 }
 
@@ -41,18 +48,28 @@ export function useInspecao(): Dependencias {
   return d;
 }
 
-/** Verificação + modelo, atualizados sozinhos quando o banco local muda. */
-export function useVerificacao(id: string | undefined) {
-  const { banco } = useInspecao();
-  return useLiveQuery(async () => {
+export type DadosVerificacao =
+  | undefined // carregando
+  | null // verificação não existe neste aparelho
+  | { verificacao: Verificacao; modelo: null } // versão do checklist não está no aparelho
+  | { verificacao: Verificacao; modelo: ModeloChecklist };
+
+/**
+ * Verificação + modelo JÁ RECORTADO pelas regras, atualizados sozinhos quando o
+ * banco local muda. Todas as telas leem por aqui: progresso, índice e plano
+ * nunca veem item fora da regra.
+ */
+export function useVerificacao(id: string | undefined): DadosVerificacao {
+  const { banco, recortar } = useInspecao();
+  return useLiveQuery(async (): Promise<DadosVerificacao> => {
     if (!id) return null;
     const verificacao = await banco.verificacoes.get(id);
     if (!verificacao) return null;
     const m = await banco.modelos.get(`${verificacao.modeloId}@${verificacao.modeloVersao}`);
-    if (!m) return null;
+    if (!m) return { verificacao, modelo: null };
     const { chave: _c, ...modelo } = m;
-    return { verificacao, modelo } as { verificacao: Verificacao; modelo: ModeloChecklist };
-  }, [id]);
+    return { verificacao, modelo: recortar(modelo, verificacao) };
+  }, [id, recortar]);
 }
 
 export function useEstadoFila(): EstadoFila & { online: boolean } {

@@ -37,7 +37,9 @@ function InicioProvisorio() {
         unidadeId: 'carajas', unidadeNome: 'Complexo Carajás (PA)', areaId: 'operacional', areaNome: 'Área operacional',
         atividadeId: 'transporte-pessoas', atividadeNome: 'Transporte de pessoas',
       },
-      veiculo: { id: 'demo-1', placa: 'OWQ3A15', descricao: 'Caminhonete', marcaModelo: 'Ford Ranger', tipo: 'leve' },
+      veiculo: {
+        id: 'demo-1', placa: 'OWQ3A15', descricao: 'Caminhonete', fabricante: 'Ford', modelo: 'Ranger', tipo: 'leve', demo: true,
+      },
       modeloId: MODELO_EXEMPLO.id,
       modeloVersao: MODELO_EXEMPLO.versao,
     });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CRITICIDADES, type Criticidade, type ModeloChecklist, type Verificacao } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
-import { Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
+import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { useInspecao, useVerificacao } from '../contexto';
 import { rotas } from '../rotas';
 import type { EstadoRascunhoItem } from './TelaItem';
@@ -20,9 +20,12 @@ export function TelaNaoConformidade() {
   const dados = useVerificacao(verificacaoId);
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
+  if (!dados.modelo) return <ChecklistIndisponivel />;
   if (dados.verificacao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
   // só monta o formulário com os dados já carregados, para preencher a edição
-  return <FormularioNaoConformidade key={itemId} itemId={itemId} {...dados} />;
+  return (
+    <FormularioNaoConformidade key={itemId} itemId={itemId} verificacao={dados.verificacao} modelo={dados.modelo} />
+  );
 }
 
 function FormularioNaoConformidade(props: { itemId: string; verificacao: Verificacao; modelo: ModeloChecklist }) {

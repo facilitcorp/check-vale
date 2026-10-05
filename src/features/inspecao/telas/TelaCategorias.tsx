@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { ModeloChecklist, Verificacao } from '@/contracts/checklist';
-import { BarraProgresso, Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
+import {
+  BarraProgresso,
+  Carregando,
+  ChecklistIndisponivel,
+  Moldura,
+  NaoEncontrada,
+  nomeVeiculo,
+  SeloDemo,
+} from '../componentes/Moldura';
 import { Icone } from '../componentes/Icone';
 import { useInspecao, useVerificacao } from '../contexto';
 import { calcularResultado, podeConcluir, type ProgressoCategoria } from '../dominio/resultado';
@@ -28,6 +36,7 @@ export function TelaCategorias() {
 
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
+  if (!dados.modelo) return <ChecklistIndisponivel />;
   const { verificacao: v, modelo } = dados;
   if (v.status === 'concluida') return <Navigate to={rotas.resultado(v.id)} replace />;
 
@@ -76,7 +85,8 @@ export function TelaCategorias() {
           <div>
             <h1>Checklist - Veículo</h1>
             <p className="sub">
-              {v.veiculo.placa} - {v.veiculo.descricao}
+              {v.veiculo.placa} - {nomeVeiculo(v.veiculo)}
+              <SeloDemo veiculo={v.veiculo} />
             </p>
           </div>
           <span className="contador">

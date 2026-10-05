@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { ModeloChecklist, StatusItem, Verificacao } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
-import { Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
+import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { useInspecao, useVerificacao } from '../contexto';
 import { rotas } from '../rotas';
 
@@ -23,9 +23,10 @@ export function TelaItem() {
   const dados = useVerificacao(verificacaoId);
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
+  if (!dados.modelo) return <ChecklistIndisponivel />;
   if (dados.verificacao.status === 'concluida') return <Navigate to={rotas.resultado(verificacaoId)} replace />;
   // key: troca de item zera o formulário
-  return <FormularioItem key={itemId} itemId={itemId} {...dados} />;
+  return <FormularioItem key={itemId} itemId={itemId} verificacao={dados.verificacao} modelo={dados.modelo} />;
 }
 
 function localizar(modelo: ModeloChecklist, itemId: string) {

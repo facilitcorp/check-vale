@@ -29,11 +29,21 @@ export type TipoVeiculo = 'leve' | 'van' | 'onibus' | 'caminhao' | 'maquina';
 export interface Veiculo {
   id: Uuid;
   placa: string; // ou código interno, no caso de máquina
-  descricao: string; // ex.: "Caminhonete Ford Ranger"
-  marcaModelo?: string;
+  descricao: string; // ex.: "Caminhonete"
+  fabricante?: string;
+  modelo?: string;
   tipo: TipoVeiculo;
   fotoUrl?: string;
+  /** Cadastro de demonstração: a tela mostra o selo DEMO. */
+  demo?: boolean;
 }
+
+/**
+ * Recorta o modelo publicado para esta inspeção (regras de aplicabilidade por
+ * tipo, área, atividade e atributos do veículo). Item fora da regra não aparece,
+ * não conta no progresso nem no índice. A fundação injeta a implementação real.
+ */
+export type RecortarModelo = (modelo: ModeloChecklist, verificacao: Verificacao) => ModeloChecklist;
 
 // ---------- Modelo de checklist (configurável, fora do código) ----------
 

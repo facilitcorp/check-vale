@@ -1,5 +1,6 @@
 import type {
   ModeloChecklist,
+  RecortarModelo,
   NaoConformidade,
   Resposta,
   StatusItem,
@@ -25,6 +26,7 @@ export class RepositorioInspecao {
     private readonly fila: FilaSincronizacao,
     private readonly agora: () => Date = () => new Date(),
     private readonly gerarId: () => string = () => crypto.randomUUID(),
+    private readonly recortar: RecortarModelo = (m) => m,
   ) {}
 
   async obter(id: string): Promise<Verificacao | undefined> {
@@ -134,7 +136,7 @@ export class RepositorioInspecao {
   async concluir(verificacaoId: string): Promise<Verificacao> {
     const v = await this.exigirRascunho(verificacaoId);
     const modelo = await this.modeloDe(v);
-    if (!modelo || !podeConcluir(modelo, v)) {
+    if (!modelo || !podeConcluir(this.recortar(modelo, v), v)) {
       throw new Error('Ainda há itens sem resposta.');
     }
     const concluidaEm = this.agora().toISOString();

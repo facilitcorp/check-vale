@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { Veiculo } from '@/contracts/checklist';
 import { useEstadoFila, useInspecao } from '../contexto';
 import { Icone } from './Icone';
 
@@ -90,6 +91,35 @@ export function NaoEncontrada() {
       <h1>Verificação não encontrada</h1>
       <p className="sub">Ela não está salva neste aparelho. Volte ao início e abra a verificação pela lista.</p>
     </Moldura>
+  );
+}
+
+/** A versão do checklist desta inspeção não está no aparelho (ex.: arquivada antes de baixar). */
+export function ChecklistIndisponivel() {
+  const navegar = useNavigate();
+  return (
+    <Moldura rodape={<button className="botao botao--primario" onClick={() => navegar('/')}>Ir para o início</button>}>
+      <h1>Checklist indisponível neste aparelho</h1>
+      <p className="sub">
+        A versão do checklist desta inspeção não está salva aqui. Conecte-se à internet e sincronize para continuar.
+        Suas respostas já registradas não foram perdidas.
+      </p>
+    </Moldura>
+  );
+}
+
+/** "Ford Ranger" a partir do cadastro; cai na descrição se faltar fabricante/modelo. */
+export function nomeVeiculo(v: Veiculo): string {
+  const fm = [v.fabricante, v.modelo].filter(Boolean).join(' ');
+  return fm || v.descricao;
+}
+
+export function SeloDemo({ veiculo }: { veiculo: Veiculo }) {
+  if (!veiculo.demo) return null;
+  return (
+    <span className="selo-demo" title="Cadastro de demonstração">
+      DEMO
+    </span>
   );
 }
 

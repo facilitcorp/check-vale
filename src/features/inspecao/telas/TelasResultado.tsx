@@ -4,7 +4,7 @@ import type { Criticidade, ModeloChecklist, Verificacao } from '@/contracts/chec
 import { CRITICIDADES } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
-import { Carregando, Moldura, NaoEncontrada } from '../componentes/Moldura';
+import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
 import { useEstadoFila, useInspecao, useVerificacao } from '../contexto';
 import { calcularResultado, planoDeAcao } from '../dominio/resultado';
 import { rotas } from '../rotas';
@@ -18,11 +18,18 @@ export function faixa(percentual: number | null): 'bom' | 'medio' | 'ruim' | 'na
   return 'ruim';
 }
 
-function useConcluida(): { verificacao: Verificacao; modelo: ModeloChecklist } | null | undefined | 'rascunho' {
+function useConcluida():
+  | { verificacao: Verificacao; modelo: ModeloChecklist }
+  | null
+  | undefined
+  | 'rascunho'
+  | 'indisponivel' {
   const { verificacaoId = '' } = useParams();
   const dados = useVerificacao(verificacaoId);
-  if (dados && dados.verificacao.status !== 'concluida') return 'rascunho';
-  return dados;
+  if (!dados) return dados;
+  if (dados.verificacao.status !== 'concluida') return 'rascunho';
+  if (!dados.modelo) return 'indisponivel';
+  return { verificacao: dados.verificacao, modelo: dados.modelo };
 }
 
 /** Tela 10. */
@@ -35,6 +42,7 @@ export function TelaResultado() {
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
+  if (dados === 'indisponivel') return <ChecklistIndisponivel />;
   const { verificacao: v, modelo } = dados;
   const r = calcularResultado(modelo, v);
   const sincronizada = online && pendentes === 0;
@@ -117,6 +125,7 @@ export function TelaResultadoCategorias() {
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
+  if (dados === 'indisponivel') return <ChecklistIndisponivel />;
   const { verificacao: v, modelo } = dados;
   const r = calcularResultado(modelo, v);
 
@@ -161,6 +170,7 @@ export function TelaPlanoAcao() {
   if (dados === undefined) return <Carregando />;
   if (dados === null) return <NaoEncontrada />;
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
+  if (dados === 'indisponivel') return <ChecklistIndisponivel />;
   const { verificacao: v, modelo } = dados;
   const acoes = planoDeAcao(modelo, v);
   const visiveis = filtro === 'todos' ? acoes : acoes.filter((a) => a.criticidade === filtro);

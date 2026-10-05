@@ -208,6 +208,7 @@ h1 { font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; }
 .chip--media { background: #fff6dc; color: #a16207; }
 .chip--baixa, .chip--ok { background: #e7f6ec; color: #15803d; }
 .detalhe { padding: 10px 12px 4px; }
+.selo-demo { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: #e8f0fb; color: #1e40af; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; vertical-align: middle; }
 
 /* Carregando */
 .carregando { display: grid; gap: 10px; }
