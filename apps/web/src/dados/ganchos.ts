@@ -12,8 +12,10 @@ export function useVeiculos() {
   return useLiveQuery(() => banco.veiculos.toArray(), []);
 }
 
+/** undefined = carregando; null = não existe neste aparelho. */
 export function useInspecao(id: string | undefined) {
-  return useLiveQuery(() => (id ? banco.inspecoes.get(id) : undefined), [id]);
+  // get() devolve undefined quando não acha, o mesmo valor de "carregando": converte para null.
+  return useLiveQuery(async () => (id ? ((await banco.inspecoes.get(id)) ?? null) : null), [id]);
 }
 
 /**

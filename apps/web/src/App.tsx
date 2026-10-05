@@ -7,9 +7,8 @@ import { PaginaFrota, PaginaOperacao, PaginaUsuarios } from "./admin/PaginasCada
 import { EditorVersao, PaginaModelos } from "./admin/PaginaModelos";
 import { Abertura } from "./telas/Abertura";
 import { CadastroVeiculo } from "./telas/CadastroVeiculo";
-import { ChecklistProvisorio } from "./telas/ChecklistProvisorio";
 import { Entrar } from "./telas/Entrar";
-import { Inicio } from "./telas/Inicio";
+import { telasDaInspecao } from "./inspecao";
 import { NovaVerificacao } from "./telas/NovaVerificacao";
 import { SelecionarVeiculo } from "./telas/SelecionarVeiculo";
 
@@ -27,11 +26,12 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/entrar" element={usuario ? <Navigate to="/" replace /> : <Entrar />} />
-        <Route path="/" element={<Protegida><Inicio /></Protegida>} />
         <Route path="/nova" element={<Protegida><NovaVerificacao /></Protegida>} />
         <Route path="/nova/veiculo" element={<Protegida><SelecionarVeiculo /></Protegida>} />
         <Route path="/veiculos/novo" element={<Protegida><CadastroVeiculo /></Protegida>} />
-        <Route path="/inspecao/:id/*" element={<Protegida><ChecklistProvisorio /></Protegida>} />
+        {telasDaInspecao.map((t) => (
+          <Route key={t.caminho} path={t.caminho} element={<Protegida>{t.elemento}</Protegida>} />
+        ))}
         <Route path="/admin" element={<Protegida><LayoutAdmin /></Protegida>}>
           <Route index element={<Navigate to="modelos" replace />} />
           <Route path="modelos" element={<PaginaModelos />} />
