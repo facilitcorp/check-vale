@@ -25,15 +25,17 @@ export function useInspecao(id: string | undefined) {
  */
 export function useChecklistDaInspecao(id: string | undefined) {
   const inspecao = useInspecao(id);
-  // Versão exata da inspeção, mesmo que o admin já tenha publicado outra.
-  const completo = useLiveQuery(
-    async () => (inspecao ? ((await banco.modelos.get(chaveModelo(inspecao.modeloId, inspecao.modeloVersao))) ?? null) : null),
-    [inspecao?.modeloId, inspecao?.modeloVersao],
-  );
+  const chave = inspecao ? chaveModelo(inspecao.modeloId, inspecao.modeloVersao) : undefined;
+  // Versão exata da inspeção, mesmo que o admin já tenha publicado outra. Enquanto a leitura
+  // não chega, o useLiveQuery devolve o resultado da chave anterior: sem conferir a chave, esse
+  // valor velho aparecia como "Checklist indisponível" (ou como o checklist de outra versão).
+  const lido = useLiveQuery(async () => (chave ? { chave, modelo: (await banco.modelos.get(chave)) ?? null } : undefined), [chave]);
   return useMemo(() => {
-    if (inspecao === undefined || completo === undefined) return { carregando: true as const };
+    if (inspecao === undefined) return { carregando: true as const };
     if (!inspecao) return { carregando: false as const, inspecao: null, modelo: null, resultado: null };
+    if (inspecao.id !== id || !lido || lido.chave !== chave) return { carregando: true as const };
+    const completo = lido.modelo;
     const modelo = completo ? aplicarRegras(completo, contextoDaInspecao(inspecao)) : null;
     return { carregando: false as const, inspecao, modelo, resultado: modelo ? calcularResultado(modelo, inspecao.respostas) : null };
-  }, [inspecao, completo]);
+  }, [id, inspecao, chave, lido]);
 }

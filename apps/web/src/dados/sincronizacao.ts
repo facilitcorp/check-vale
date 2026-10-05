@@ -1,4 +1,4 @@
-import type { Catalogo, Inspecao, SyncSaida, Veiculo } from "@checkvale/shared";
+import type { Catalogo, Inspecao, ModeloChecklist, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
 import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
 import { aoEnfileirar, contarPendentes } from "./fila";
@@ -117,6 +117,28 @@ async function baixar(): Promise<void> {
   const i = await chamarApi<{ inspecoes: Inspecao[]; servidorEm: string }>(`/inspecoes${desdeI ? `?desde=${encodeURIComponent(desdeI)}` : ""}`);
   await banco.inspecoes.bulkPut(i.inspecoes.filter((x) => !naFila.has(`inspecao:${x.id}`)));
   await gravarMeta("cursor:inspecoes", i.servidorEm);
+
+  await baixarVersoesFaltantes();
+}
+
+/**
+ * Cada inspeção usa a versão do modelo em que foi aberta. O catálogo só traz a última
+ * publicada: num aparelho novo (ou com dados limpos) a versão antiga não está aqui e a
+ * inspeção não abriria. Busca só o que falta; depois fica guardado para usar offline.
+ */
+async function baixarVersoesFaltantes(): Promise<void> {
+  const usadas = new Map((await banco.inspecoes.toArray()).map((x) => [chaveModelo(x.modeloId, x.modeloVersao), x] as const));
+  const presentes = new Set(await banco.modelos.where("chave").anyOf([...usadas.keys()]).primaryKeys());
+  for (const [chave, x] of usadas) {
+    if (presentes.has(chave)) continue;
+    try {
+      const m = await chamarApi<ModeloChecklist>(`/catalogo/modelos/${x.modeloId}/versoes/${x.modeloVersao}`);
+      await banco.modelos.put({ ...m, chave });
+    } catch (e) {
+      if (e instanceof ErroDaApi && e.status === 404) continue; // versão sumiu no servidor: a tela avisa
+      throw e;
+    }
+  }
 }
 
 let rodando: Promise<void> | null = null;
