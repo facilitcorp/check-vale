@@ -18,7 +18,8 @@ export function Inicio() {
   const inspecoes = useLiveQuery(() => banco.inspecoes.orderBy("iniciadaEm").reverse().limit(30).toArray(), []);
 
   const veiculo = (id: string) => veiculos?.find((v) => v.id === id);
-  const modelo = (id: string, versao: number) => catalogo?.modelos.find((m) => m.id === id && m.versao === versao);
+  const modelos = useLiveQuery(() => banco.modelos.toArray(), []);
+  const modelo = (id: string, versao: number) => modelos?.find((m) => m.id === id && m.versao === versao);
 
   return (
     <>

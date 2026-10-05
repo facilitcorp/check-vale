@@ -91,3 +91,20 @@ describe("sincronização", () => {
     expect(srv.recebidas.map((o) => o.opId)).toEqual([opId]);
   });
 });
+
+describe("versões de modelo no aparelho", () => {
+  it("guarda versões antigas: inspeção da v1 abre depois que a v2 é publicada", async () => {
+    const { banco: b } = await import("./banco");
+    const modelo = (versao: number) => ({ id: "m1", nome: "M", versao, aplicavel: { tipoVeiculoIds: [], areaIds: [], atividadeIds: [], atributos: [] }, categorias: [] });
+    for (const v of [1, 2]) {
+      vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+        const corpo = url.startsWith("/api/catalogo")
+          ? { versao: String(v), unidades: [], areas: [], atividades: [], tiposVeiculo: [], atributos: [], modelos: [modelo(v)] }
+          : url.startsWith("/api/veiculos") ? { veiculos: [], servidorEm: new Date().toISOString() } : { inspecoes: [], servidorEm: new Date().toISOString() };
+        return new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
+      }));
+      await sincronizar();
+    }
+    expect((await b.modelos.toArray()).map((m) => m.versao).sort()).toEqual([1, 2]);
+  });
+});

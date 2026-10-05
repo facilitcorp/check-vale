@@ -1,6 +1,6 @@
 import type { Catalogo, Inspecao, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
-import { banco, gravarMeta, idDispositivo, lerMeta } from "./banco";
+import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
 import { aoEnfileirar, contarPendentes } from "./fila";
 
 /**
@@ -85,7 +85,10 @@ async function baixar(): Promise<void> {
   const cat = await chamarApi<Catalogo | undefined>("/catalogo", {
     headers: local ? { "If-None-Match": `"${local.catalogo.versao}"` } : {},
   });
-  if (cat) await banco.catalogo.put({ chave: "atual", catalogo: cat });
+  if (cat) {
+    await banco.catalogo.put({ chave: "atual", catalogo: cat });
+    await banco.modelos.bulkPut(cat.modelos.map((m) => ({ ...m, chave: chaveModelo(m.id, m.versao) })));
+  }
 
   const desdeV = await lerMeta("cursor:veiculos");
   const v = await chamarApi<{ veiculos: Veiculo[]; servidorEm: string }>(`/veiculos${desdeV ? `?desde=${encodeURIComponent(desdeV)}` : ""}`);

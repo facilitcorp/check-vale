@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Catalogo, Evidencia, Inspecao, OperacaoSync, Usuario, Veiculo } from "@checkvale/shared";
+import type { Catalogo, Evidencia, Inspecao, ModeloChecklist, OperacaoSync, Usuario, Veiculo } from "@checkvale/shared";
 
 /** Sessão salva no aparelho: permite reabrir o app sem rede enquanto o token valer. */
 export interface SessaoLocal {
@@ -45,6 +45,8 @@ export class BancoCheckVale extends Dexie {
   evidencias!: EntityTable<EvidenciaLocal, "id">;
   fila!: EntityTable<OpFila, "seq">;
   meta!: EntityTable<Meta, "chave">;
+  /** Toda versão de modelo já recebida: inspeção em andamento numa versão substituída continua abrindo. */
+  modelos!: EntityTable<ModeloChecklist & { chave: string }, "chave">;
 
   constructor(nome = "checkvale") {
     super(nome);
@@ -57,6 +59,7 @@ export class BancoCheckVale extends Dexie {
       fila: "++seq, estado, alvo",
       meta: "chave",
     });
+    this.version(2).stores({ modelos: "chave, id" });
   }
 }
 
@@ -78,3 +81,5 @@ export async function idDispositivo(): Promise<string> {
   }
   return id;
 }
+
+export const chaveModelo = (id: string, versao: number) => `${id}@${versao}`;
