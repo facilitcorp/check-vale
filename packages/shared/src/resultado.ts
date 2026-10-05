@@ -13,7 +13,10 @@ import {
  * Regras (MVP, a validar com o produto):
  * - Índice de prontidão = conformes / aplicáveis, onde aplicáveis = itens
  *   respondidos que não são "não se aplica". Sem aplicáveis → 0.
- * - Ponto de atenção = não conformidade de criticidade média ou baixa.
+ * - Ponto de atenção = item CONFORME com observação preenchida (ressalva do
+ *   inspetor). É subconjunto de `conformes`; os cartões do resultado mostram
+ *   conformes − pontosAtencao, pontosAtencao, naoConformes e naoAplica, que somam
+ *   o total respondido (como no mockup: 32 + 10 + 6 + 0 = 48).
  * - Situação: qualquer NC crítica → "nao_apto"; qualquer NC (alta/média/baixa)
  *   → "apto_com_restricoes"; sem NC → "apto". Só vale com a inspeção completa;
  *   antes disso é "incompleta".
@@ -102,10 +105,12 @@ export function calcularResultado(modelo: ModeloChecklist, respostas: readonly R
 
   const planoAcao: (AcaoPlano & { ordem: number })[] = [];
   let ordem = 0;
+  let pontosAtencao = 0;
   for (const cat of categorias) {
     for (const item of [...cat.itens].sort((a, b) => a.ordem - b.ordem)) {
       ordem++;
       const r = vigentes.get(item.id);
+      if (r?.status === "conforme" && r.observacao?.trim()) pontosAtencao++;
       if (r?.status !== "nao_conforme" || !r.naoConformidade) continue;
       planoAcao.push({
         itemId: item.id,
@@ -125,7 +130,6 @@ export function calcularResultado(modelo: ModeloChecklist, respostas: readonly R
   const conformes = soma("conformes");
   const naoAplica = soma("naoAplica");
   const completa = total > 0 && respondidos === total;
-  const pontosAtencao = planoAcao.filter((a) => a.criticidade === "media" || a.criticidade === "baixa").length;
 
   let situacao: Situacao = "incompleta";
   if (completa) {

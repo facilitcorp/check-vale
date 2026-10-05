@@ -55,7 +55,7 @@ describe("calcularResultado", () => {
     const r = calcularResultado(modelo, [nc(uid(11), "media"), nc(uid(12), "critica"), ok(uid(21)), ok(uid(22))]);
     expect(r.indice).toBe(50);
     expect(r.naoConformes).toBe(2);
-    expect(r.pontosAtencao).toBe(1);
+    expect(r.pontosAtencao).toBe(0);
     expect(r.situacao).toBe("nao_apto");
     expect(r.planoAcao.map((a) => a.criticidade)).toEqual(["critica", "media"]);
   });
@@ -70,6 +70,14 @@ describe("calcularResultado", () => {
     expect(r.respondidos).toBe(1);
     expect(r.conformes).toBe(1);
     expect(r.planoAcao).toHaveLength(0);
+  });
+});
+
+describe("pontos de atenção", () => {
+  it("conta item conforme com observação; observação em branco não conta", () => {
+    const r = calcularResultado(modelo, [{ ...ok(uid(11)), observacao: "Pequeno risco na pintura" }, { ...ok(uid(12)), observacao: "  " }, ok(uid(21))]);
+    expect(r.pontosAtencao).toBe(1);
+    expect(r.conformes).toBe(3);
   });
 });
 
