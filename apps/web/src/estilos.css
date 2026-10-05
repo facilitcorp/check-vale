@@ -18,6 +18,8 @@
   --color-ok: #13703a;
   --color-atencao: #f2a705;
   --color-erro: #d93025;
+  /* Texto de erro sobre fundo tingido de erro (Aviso): #d93025 ali fica abaixo de 4,5 (WCAG AA). */
+  --color-erro-forte: #b3261e;
   --color-neutro: #8a949c;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
