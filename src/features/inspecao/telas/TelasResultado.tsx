@@ -5,7 +5,8 @@ import { CRITICIDADES } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
 import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada, SeloSituacao } from '../componentes/Moldura';
-import { useInspecao, useSituacaoDaInspecao } from '../contexto';
+import { useInspecao } from '../contexto';
+import { useSituacaoSyncInspecao } from '../dados/estadoSync';
 import { useChecklistDaInspecao, type ChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import { ROTULO_CRITICIDADE } from './TelaNaoConformidade';
@@ -34,7 +35,8 @@ function useConcluida(): Concluida | null | undefined | 'rascunho' | 'indisponiv
 export function TelaResultado() {
   const dados = useConcluida();
   const navegar = useNavigate();
-  const situacao = useSituacaoDaInspecao(typeof dados === 'object' && dados ? dados.verificacao : null);
+  const { verificacaoId: idRota = '' } = useParams();
+  const situacao = useSituacaoSyncInspecao(idRota)?.situacao;
   const { abrirRelatorio } = useInspecao();
   const { verificacaoId = '' } = useParams();
   if (dados === undefined) return <Carregando />;
@@ -42,7 +44,7 @@ export function TelaResultado() {
   if (dados === 'rascunho') return <Navigate to={rotas.categorias(verificacaoId)} replace />;
   if (dados === 'indisponivel') return <ChecklistIndisponivel />;
   const { verificacao: v, resultado: r } = dados;
-  const sincronizada = situacao === 'enviado';
+  const sincronizada = situacao === 'tudo_enviado';
 
   return (
     <Moldura

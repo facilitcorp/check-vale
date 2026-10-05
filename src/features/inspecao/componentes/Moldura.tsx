@@ -1,8 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Veiculo } from '@/contracts/checklist';
-import { useInspecao, useSituacaoGlobal } from '../contexto';
-import { ROTULO_SITUACAO, type SituacaoSync } from '@/infra/offline/situacao';
+import { useAvisoSalvo, useEstadoFila, useInspecao } from '../contexto';
+import { ROTULO_SYNC, useSituacaoSyncGeral, type SituacaoSync } from '../dados/estadoSync';
 import { Icone } from './Icone';
 
 /** Cabeçalho verde com a marca, voltar e o estado da sincronização. */
@@ -35,7 +35,10 @@ export function Moldura(props: { voltarPara?: string; children: ReactNode; rodap
         <IndicadorSync />
       </header>
       <AvisoSemSinal />
-      <main className="conteudo" ref={principal}>{props.children}</main>
+      <main className="conteudo" ref={principal}>
+        {props.children}
+        <AvisoSalvo />
+      </main>
       {props.rodape && <footer className="rodape">{props.rodape}</footer>}
     </div>
   );
@@ -43,19 +46,34 @@ export function Moldura(props: { voltarPara?: string; children: ReactNode; rodap
 
 /** Faixa visível sem sinal: o inspetor precisa saber que pode continuar e que nada se perde. */
 function AvisoSemSinal() {
-  const { situacao } = useSituacaoGlobal();
-  if (situacao !== 'sem_conexao') return null;
-  return <aside className="aviso-offline" aria-label="Situação da conexão">Sem conexão. {ROTULO_SITUACAO.sem_conexao.ajuda.replace('Pode continuar: ', 'Pode continuar, ')}</aside>;
+  const { online } = useEstadoFila();
+  if (online) return null;
+  return (
+    <aside className="aviso-offline" aria-label="Situação da conexão">
+      Sem conexão. Pode continuar: tudo fica salvo no aparelho e sobe quando o sinal voltar.
+    </aside>
+  );
+}
+
+/** Aviso rápido depois de gravar uma resposta. */
+function AvisoSalvo() {
+  const visivel = useAvisoSalvo();
+  return (
+    <div className="aviso-salvo" role="status" aria-live="polite">
+      {visivel && <span className="situacao situacao--salvo_no_aparelho">{ROTULO_SYNC.salvo_no_aparelho}</span>}
+    </div>
+  );
 }
 
 function IndicadorSync() {
-  const { situacao, pendentes } = useSituacaoGlobal();
-  const { rotulo } = ROTULO_SITUACAO[situacao];
-  const texto = pendentes > 0 ? `${rotulo} · ${pendentes} pendente${pendentes > 1 ? 's' : ''}` : rotulo;
+  const estado = useSituacaoSyncGeral();
+  const situacao = estado?.situacao ?? 'tudo_enviado';
+  const pendentes = estado ? estado.pendencias.operacoes + estado.pendencias.fotos : 0;
+  const texto = pendentes > 0 ? `${ROTULO_SYNC[situacao]} · ${pendentes} pendente${pendentes > 1 ? 's' : ''}` : ROTULO_SYNC[situacao];
   return (
-    <span className={`sync sync--${situacao}`} title={texto} aria-label={texto} role="status">
+    <span className={`sync sync--${situacao}`} title={texto} aria-label={texto} role="img">
       <Icone nome={situacao === 'erro' ? 'alerta' : 'nuvem'} tamanho={18} />
-      {pendentes > 0 && <span className="sync__num">{pendentes}</span>}
+      {pendentes > 0 && <span className="sync__num" aria-hidden="true">{pendentes}</span>}
     </span>
   );
 }
@@ -63,7 +81,7 @@ function IndicadorSync() {
 /** Situação com texto (nunca só cor), para cards e listas. */
 export function SeloSituacao({ situacao }: { situacao: SituacaoSync | undefined }) {
   if (!situacao) return null;
-  return <span className={`situacao situacao--${situacao}`}>{ROTULO_SITUACAO[situacao].rotulo}</span>;
+  return <span className={`situacao situacao--${situacao}`}>{ROTULO_SYNC[situacao]}</span>;
 }
 
 /** Esqueleto enquanto o banco do aparelho responde (no celular fraco leva um instante). */

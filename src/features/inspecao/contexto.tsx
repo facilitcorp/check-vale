@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { ModeloChecklist, OperacaoSync, RecortarModelo, Verificacao } from '@/contracts/checklist';
-import { situacaoSync, type SituacaoSync } from '@/infra/offline/situacao';
+import type { ModeloChecklist, RecortarModelo, Verificacao } from '@/contracts/checklist';
 import type { BancoLocal } from '@/infra/offline/banco';
 import type { EstadoFila, FilaSincronizacao } from '@/infra/offline/fila';
 import { MARCA_PADRAO, type Marca } from '@/infra/branding/marca';
@@ -115,41 +114,36 @@ export function useUrlEvidencia(id: string): string | undefined {
   return url;
 }
 
-/** Estado de sincronização do aparelho inteiro (topo das telas e tela inicial). */
-export function useSituacaoGlobal(): { situacao: SituacaoSync; pendentes: number; tentarAgora: () => void } {
+/** "Tentar agora": força uma tentativa de envio da fila. */
+export function useTentarAgora(): () => void {
   const { fila } = useInspecao();
-  const e = useEstadoFila();
-  return {
-    situacao: situacaoSync({ online: e.online, pendentes: e.pendentes, sincronizando: e.sincronizando, comErro: !!e.ultimoErro }),
-    pendentes: e.pendentes,
-    tentarAgora: () => void fila.processar(),
-  };
+  return () => void fila.processar();
 }
 
-const daInspecao = (op: OperacaoSync, id: string) =>
-  op.tipo === 'verificacao.salvar'
-    ? op.verificacao.id === id
-    : op.tipo === 'evidencia.enviar'
-      ? op.evidencia.verificacaoId === id
-      : op.verificacaoId === id;
-
-/** Estado de sincronização de UMA inspeção (cards da tela inicial e histórico). */
-export function useSituacaoDaInspecao(inspecao: Verificacao | null | undefined): SituacaoSync | undefined {
-  const { banco } = useInspecao();
-  const global = useEstadoFila();
-  const id = inspecao?.id;
-  const fila = useLiveQuery(
-    async () => (id ? banco.fila.filter((i) => daInspecao(i.operacao, id)).toArray() : []),
-    [banco, id],
-  );
-  if (!inspecao || !fila) return undefined;
-  // Já está tudo no servidor: a falta de sinal agora não afeta esta inspeção.
-  if (fila.length === 0) return 'enviado';
-  return situacaoSync({
-    online: global.online,
-    pendentes: fila.length,
-    sincronizando: global.sincronizando,
-    comErro: fila.some((i) => !!i.ultimoErro),
-    emAndamento: inspecao.status === 'rascunho',
-  });
+const EVENTO_SALVO = 'checkvale:salvo';
+let ultimoSalvoEm = 0;
+/** Dispara o aviso rápido "Salvo no aparelho". Sobrevive à troca de tela: a tela nova lê o horário. */
+export function avisarSalvo() {
+  ultimoSalvoEm = Date.now();
+  window.dispatchEvent(new Event(EVENTO_SALVO));
+}
+export function useAvisoSalvo(duracaoMs = 2000): boolean {
+  const [visivel, setVisivel] = useState(() => Date.now() - ultimoSalvoEm < duracaoMs);
+  useEffect(() => {
+    let t: number | undefined;
+    const agendarFim = () => {
+      window.clearTimeout(t);
+      const resta = duracaoMs - (Date.now() - ultimoSalvoEm);
+      if (resta <= 0) return setVisivel(false);
+      setVisivel(true);
+      t = window.setTimeout(() => setVisivel(false), resta);
+    };
+    agendarFim();
+    window.addEventListener(EVENTO_SALVO, agendarFim);
+    return () => {
+      window.removeEventListener(EVENTO_SALVO, agendarFim);
+      window.clearTimeout(t);
+    };
+  }, [duracaoMs]);
+  return visivel;
 }

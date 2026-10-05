@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CRITICIDADES, type Criticidade, type ModeloChecklist, type Verificacao } from '@/contracts/checklist';
 import { Evidencias } from '../componentes/Evidencias';
 import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
-import { useInspecao } from '../contexto';
+import { avisarSalvo, useInspecao } from '../contexto';
 import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import type { EstadoRascunhoItem } from './TelaItem';
@@ -55,6 +55,7 @@ function FormularioNaoConformidade(props: { itemId: string; verificacao: Verific
         observacao: rascunho.observacao ?? v.respostas[itemId]?.observacao,
         naoConformidade: { descricao: descricao.trim(), criticidade },
       });
+      avisarSalvo();
       navegar(proximo ? rotas.item(v.id, proximo.id) : rotas.categorias(v.id), { replace: true });
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');

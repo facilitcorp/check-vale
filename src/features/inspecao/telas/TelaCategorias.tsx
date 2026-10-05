@@ -12,7 +12,8 @@ import {
   SeloSituacao,
 } from '../componentes/Moldura';
 import { Icone } from '../componentes/Icone';
-import { useInspecao, useSituacaoDaInspecao } from '../contexto';
+import { useInspecao } from '../contexto';
+import { useSituacaoSyncInspecao } from '../dados/estadoSync';
 import { useChecklistDaInspecao } from '../dados/ganchos';
 import type { ProgressoCategoria } from '../dominio/resultado';
 import { rotas } from '../rotas';
@@ -31,7 +32,7 @@ export function proximoPendente(modelo: ModeloChecklist, v: Verificacao, categor
 export function TelaCategorias() {
   const { verificacaoId = '' } = useParams();
   const { carregando, inspecao, modelo, resultado } = useChecklistDaInspecao(verificacaoId);
-  const situacao = useSituacaoDaInspecao(inspecao);
+  const situacao = useSituacaoSyncInspecao(verificacaoId)?.situacao;
   const { repo } = useInspecao();
   const navegar = useNavigate();
   const [erro, setErro] = useState<string>();

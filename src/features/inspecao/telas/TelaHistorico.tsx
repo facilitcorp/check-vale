@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Verificacao } from '@/contracts/checklist';
 import { Icone } from '../componentes/Icone';
 import { Carregando, Moldura, nomeVeiculo, SeloDemo, SeloSituacao } from '../componentes/Moldura';
-import { useInspecao, useSituacaoDaInspecao } from '../contexto';
+import { useInspecao } from '../contexto';
+import { useSituacaoSyncInspecao } from '../dados/estadoSync';
 import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import { dataHora } from './formatos';
@@ -37,7 +38,7 @@ export function TelaHistorico() {
 export function LinhaHistorico({ verificacao: v }: { verificacao: Verificacao }) {
   const navegar = useNavigate();
   const { resultado, modelo, carregando } = useChecklistDaInspecao(v.id);
-  const situacao = useSituacaoDaInspecao(v);
+  const situacao = useSituacaoSyncInspecao(v.id)?.situacao;
   const concluida = v.status === 'concluida';
   const indice = concluida && resultado ? resultado.indiceProntidao : null;
   const destino = concluida ? rotas.resultado(v.id) : rotas.categorias(v.id);

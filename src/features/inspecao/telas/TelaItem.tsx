@@ -4,7 +4,7 @@ import type { ModeloChecklist, StatusItem, Verificacao } from '@/contracts/check
 import { Evidencias } from '../componentes/Evidencias';
 import { Icone } from '../componentes/Icone';
 import { Carregando, ChecklistIndisponivel, Moldura, NaoEncontrada } from '../componentes/Moldura';
-import { useInspecao } from '../contexto';
+import { avisarSalvo, useInspecao } from '../contexto';
 import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 
@@ -72,6 +72,7 @@ function FormularioItem(props: { itemId: string; verificacao: Verificacao; model
     setSalvando(true);
     try {
       await repo.responder(v.id, itemId, { status, observacao });
+      avisarSalvo();
       navegar(destinoDepois);
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');

@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Verificacao } from '@/contracts/checklist';
-import { ROTULO_SITUACAO } from '@/infra/offline/situacao';
 import { BarraProgresso, Moldura, nomeVeiculo, SeloDemo, SeloSituacao } from '../componentes/Moldura';
-import { useInspecao, useSituacaoDaInspecao, useSituacaoGlobal } from '../contexto';
+import { useInspecao, useTentarAgora } from '../contexto';
+import { useSituacaoSyncGeral, useSituacaoSyncInspecao, type SituacaoSync } from '../dados/estadoSync';
 import { useChecklistDaInspecao } from '../dados/ganchos';
 import { rotas } from '../rotas';
 import { dataHora, textoOperacao } from './formatos';
@@ -77,16 +77,39 @@ export function TelaInicio() {
   );
 }
 
+const AJUDA_SYNC: Record<SituacaoSync, string> = {
+  salvo_no_aparelho: 'Suas respostas estão guardadas e sobem sozinhas.',
+  sem_conexao: 'Pode continuar: tudo fica salvo no aparelho e sobe quando o sinal voltar.',
+  aguardando_envio: 'Será enviado na próxima tentativa.',
+  sincronizando: 'Enviando para o servidor…',
+  tudo_enviado: 'Nada pendente neste aparelho.',
+  erro: 'Nada foi perdido. O envio é repetido sozinho; você também pode tentar agora.',
+};
+
 function CartaoSincronizacao() {
-  const { situacao, pendentes, tentarAgora } = useSituacaoGlobal();
+  const estado = useSituacaoSyncGeral();
+  const tentarAgora = useTentarAgora();
+  if (!estado) return null;
+  const { situacao, pendencias } = estado;
+  const partes = [
+    pendencias.operacoes > 0 && `${pendencias.operacoes} registro${pendencias.operacoes > 1 ? 's' : ''}`,
+    pendencias.fotos > 0 && `${pendencias.fotos} foto${pendencias.fotos > 1 ? 's' : ''}`,
+  ].filter(Boolean);
   return (
     <div className={`cartao-sync cartao-sync--${situacao}`}>
       <div>
         <SeloSituacao situacao={situacao} />
         <p className="dica">
-          {ROTULO_SITUACAO[situacao].ajuda}
-          {pendentes > 0 && ` ${pendentes} envio${pendentes > 1 ? 's' : ''} pendente${pendentes > 1 ? 's' : ''}.`}
+          {AJUDA_SYNC[situacao]}
+          {partes.length > 0 && ` Pendente: ${partes.join(' e ')}.`}
         </p>
+        {pendencias.recusas.length > 0 && (
+          <ul className="recusas">
+            {pendencias.recusas.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
       </div>
       {situacao === 'erro' && (
         <button className="botao botao--secundario botao--compacto" onClick={tentarAgora}>
@@ -100,7 +123,7 @@ function CartaoSincronizacao() {
 function CartaoAndamento({ verificacao: v }: { verificacao: Verificacao }) {
   const navegar = useNavigate();
   const { resultado, carregando } = useChecklistDaInspecao(v.id);
-  const situacao = useSituacaoDaInspecao(v);
+  const situacao = useSituacaoSyncInspecao(v.id)?.situacao;
   return (
     <article className="cartao-inspecao" aria-label={`Verificação em andamento: ${v.veiculo.placa}`}>
       <div className="cartao-inspecao__topo">

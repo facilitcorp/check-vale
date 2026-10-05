@@ -68,7 +68,7 @@ describe('tela inicial do inspetor', () => {
     expect(c.getByText('DEMO')).toBeInTheDocument();
     expect(c.getByText('Complexo X · Mina · Transporte')).toBeInTheDocument();
     expect(await c.findByText(new RegExp(`1 de ${MODELO_EXEMPLO.categorias.flatMap((x) => x.itens).length} itens`))).toBeInTheDocument();
-    expect(await c.findByText('Salvo no aparelho')).toBeInTheDocument();
+    expect(await c.findByText('Aguardando envio')).toBeInTheDocument();
     await user.click(c.getByRole('button', { name: 'Continuar verificação' }));
     expect(await screen.findByRole('heading', { name: 'Checklist - Veículo' })).toBeInTheDocument();
   });

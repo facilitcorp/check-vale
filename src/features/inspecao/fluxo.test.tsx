@@ -54,6 +54,7 @@ describe('fluxo da inspeção (telas 5–12)', () => {
     await user.click(screen.getByRole('radio', { name: 'Conforme' }));
     await user.click(screen.getByRole('button', { name: 'Avançar' }));
     expect(await screen.findByRole('heading', { name: 'Chassi confere com documento' })).toBeInTheDocument();
+    expect(await screen.findByText('Salvo no aparelho')).toBeInTheDocument();
 
     // não conforme -> tela de registro
     await user.click(screen.getByRole('radio', { name: 'Não conforme' }));
