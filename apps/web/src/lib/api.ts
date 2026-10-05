@@ -20,13 +20,19 @@ export function aoSessaoExpirar(fn: () => void) {
   aoExpirar = fn;
 }
 
+/**
+ * Rede de campo trava sem cair. Sem prazo, uma chamada pendurada segura a
+ * sincronização inteira (as rodadas seguintes esperam por ela).
+ */
+export const TEMPO_LIMITE_MS = 60_000;
+
 export async function chamarApi<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init.body && typeof init.body === "string") headers.set("Content-Type", "application/json");
   let r: Response;
   try {
-    r = await fetch(`/api${caminho}`, { ...init, headers });
+    r = await fetch(`/api${caminho}`, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(TEMPO_LIMITE_MS) });
   } catch {
     throw new ErroRede("Sem conexão com o servidor.");
   }
