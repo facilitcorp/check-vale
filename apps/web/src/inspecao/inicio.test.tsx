@@ -50,6 +50,21 @@ describe('tela inicial do inspetor', () => {
     await screen.findByRole('heading', { name: 'Checklist - Veículo' }, ESPERA);
   });
 
+  it('ao abrir, o cartão não pisca "Checklist indisponível" quando a versão está no aparelho', async () => {
+    const v = await novaInspecao('RTY4B22');
+    await responder(v.id, ITENS_LEVE[0]!.id, 'conforme');
+    let piscou = false;
+    const observador = new MutationObserver(() => {
+      if (document.body.textContent?.includes('Checklist indisponível')) piscou = true;
+    });
+    observador.observe(document.body, { subtree: true, childList: true, characterData: true });
+    abrir();
+    const cartao = await screen.findByRole('article', { name: /RTY4B22/ }, ESPERA);
+    await within(cartao).findByText(new RegExp(`1 de ${ITENS_LEVE.length} itens`), undefined, ESPERA);
+    observador.disconnect();
+    expect(piscou).toBe(false);
+  });
+
   it('últimos checklists e histórico: resultado, situação e abre os detalhes', async () => {
     const v = await novaInspecao('PQO1C83');
     await concluirTudo(v.id);
