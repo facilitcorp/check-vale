@@ -143,6 +143,8 @@ export function useSituacaoDaInspecao(inspecao: Verificacao | null | undefined):
     [banco, id],
   );
   if (!inspecao || !fila) return undefined;
+  // Já está tudo no servidor: a falta de sinal agora não afeta esta inspeção.
+  if (fila.length === 0) return 'enviado';
   return situacaoSync({
     online: global.online,
     pendentes: fila.length,

@@ -105,8 +105,10 @@ function CartaoAndamento({ verificacao: v }: { verificacao: Verificacao }) {
     <article className="cartao-inspecao" aria-label={`Verificação em andamento: ${v.veiculo.placa}`}>
       <div className="cartao-inspecao__topo">
         <div>
-          <strong className="placa">{v.veiculo.placa}</strong>
-          <SeloDemo veiculo={v.veiculo} />
+          <span className="linha__titulo">
+            <strong className="placa">{v.veiculo.placa}</strong>
+            <SeloDemo veiculo={v.veiculo} />
+          </span>
           <p className="sub">{nomeVeiculo(v.veiculo)}</p>
         </div>
         <SeloSituacao situacao={situacao} />

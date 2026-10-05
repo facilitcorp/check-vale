@@ -45,7 +45,7 @@ export function Moldura(props: { voltarPara?: string; children: ReactNode; rodap
 function AvisoSemSinal() {
   const { situacao } = useSituacaoGlobal();
   if (situacao !== 'sem_conexao') return null;
-  return <p className="aviso-offline">Sem conexão. {ROTULO_SITUACAO.sem_conexao.ajuda.replace('Pode continuar: ', 'Pode continuar, ')}</p>;
+  return <aside className="aviso-offline" aria-label="Situação da conexão">Sem conexão. {ROTULO_SITUACAO.sem_conexao.ajuda.replace('Pode continuar: ', 'Pode continuar, ')}</aside>;
 }
 
 function IndicadorSync() {
