@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./inspecao/inspecao.css";
 
 /*
  * Tokens de marca (mockup CheckVale). Componentes usam SÓ estes nomes

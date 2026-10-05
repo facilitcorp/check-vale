@@ -8,4 +8,6 @@ export const MARCA = {
   nomeDestaque: "Vale",
   slogan: "Seu checklist digital para mobilizar veículos",
   iniciativa: null as string | null,
+  /** Link do botão "Falar com especialista" (plano de ação). null = botão escondido. */
+  contatoEspecialista: null as string | null,
 };
