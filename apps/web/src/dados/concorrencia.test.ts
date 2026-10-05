@@ -86,3 +86,50 @@ describe("concorrência fila × sincronização", () => {
     expect(i.id).toBeTruthy();
   });
 });
+
+describe("fila presa em 'enviando' (aceite do MVP, parte 3)", () => {
+  it("linha que ficou 'enviando' quando o app fechou no meio do envio sobe na próxima sincronização", async () => {
+    const srv = servidorLento();
+    srv.liberar();
+    const i = await repositorioInspecao.criar(ctx);
+    await repositorioInspecao.salvarResposta(i.id, resposta(uid()));
+    // A página morreu com o envio no ar: a linha ficou marcada e ninguém a devolveu.
+    await banco.fila.toCollection().modify({ estado: "enviando" });
+
+    await sincronizar();
+
+    expect(srv.lotes.flat().filter((o) => o.tipo === "inspecao.salvar")).toHaveLength(1);
+    expect(await banco.fila.count()).toBe(0);
+  });
+
+  it("envio que não responde é abortado: a rodada termina e a operação volta para a fila", async () => {
+    // Prazo curto no teste; no app é TEMPO_LIMITE_MS.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+      const c = new AbortController();
+      setTimeout(() => c.abort(new DOMException("prazo", "TimeoutError")), 20);
+      return c.signal;
+    });
+    let travar = true;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url !== "/api/sync") return vazio(url);
+      if (travar)
+        return new Promise<Response>((_, falha) => {
+          if (!init?.signal) return; // sem prazo: pendura para sempre
+          init.signal.addEventListener("abort", () => falha(init.signal!.reason));
+        });
+      const e = JSON.parse(init!.body as string) as SyncEntrada;
+      return json({ resultados: e.operacoes.map((o) => ({ opId: o.opId, status: "aplicada", erro: null })), servidorEm: new Date().toISOString() });
+    }));
+    const i = await repositorioInspecao.criar(ctx);
+    await repositorioInspecao.salvarResposta(i.id, resposta(uid()));
+
+    const rodada = await Promise.race([sincronizar().then(() => "terminou"), new Promise((ok) => setTimeout(() => ok("pendurada"), 1000))]);
+    expect(rodada).toBe("terminou");
+    expect((await banco.fila.toArray()).map((o) => o.estado)).toEqual(["pendente"]);
+
+    travar = false;
+    await sincronizar();
+    expect(await banco.fila.count()).toBe(0);
+    vi.restoreAllMocks();
+  });
+});

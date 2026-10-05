@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
-import type { Catalogo } from "@checkvale/shared";
+import { z } from "zod";
+import { Id, type Catalogo, type ModeloChecklist } from "@checkvale/shared";
+import { ErroHttp } from "../app";
 import { areaDeLinha, atividadeDeLinha, atributoDeLinha, modeloDeLinha, tipoDeLinha, unidadeDeLinha } from "../mapeamento";
+
+const VersaoParam = z.object({ id: Id, v: z.coerce.number().int().positive() });
 
 export const rotasCatalogo: FastifyPluginAsync = async (app) => {
   app.get("/catalogo", async (req, rep) => {
@@ -26,5 +30,15 @@ export const rotasCatalogo: FastifyPluginAsync = async (app) => {
     rep.header("ETag", `"${versao}"`);
     if (req.headers["if-none-match"] === `"${versao}"`) return rep.status(304).send();
     return { versao, ...corpo } satisfies Catalogo;
+  });
+
+  // Versão exata em que uma inspeção foi aberta. O catálogo só traz a última publicada;
+  // um aparelho novo (ou com dados limpos) busca aqui a versão das inspeções que recebeu.
+  // Rascunho nunca sai: só versões que já foram publicadas.
+  app.get("/catalogo/modelos/:id/versoes/:v", async (req): Promise<ModeloChecklist> => {
+    const { id, v } = VersaoParam.parse(req.params);
+    const { rows } = await app.db.query(`SELECT * FROM modelos_checklist WHERE id = $1 AND versao = $2 AND status IN ('publicada', 'arquivada')`, [id, v]);
+    if (!rows[0]) throw new ErroHttp(404, "nao_encontrado", "Versão de modelo não encontrada.");
+    return modeloDeLinha(rows[0]);
   });
 };
