@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ModeloChecklist, Resposta } from "./dominio";
+import { SEM_RESTRICAO, type ModeloChecklist, type Resposta } from "./dominio";
 import { Resposta as RespostaSchema } from "./dominio";
 import { calcularResultado } from "./resultado";
 
@@ -11,22 +11,20 @@ const modelo: ModeloChecklist = {
   id: uid(1),
   nome: "Teste",
   versao: 1,
-  tipoVeiculoIds: [],
-  areaIds: [],
-  atividadeIds: [],
+  aplicavel: SEM_RESTRICAO,
   categorias: [
     {
-      id: uid(10), codigo: "ext", nome: "Itens externos", icone: "car", ordem: 2,
+      id: uid(10), codigo: "ext", nome: "Itens externos", icone: "car", ordem: 2, aplicavel: SEM_RESTRICAO,
       itens: [
-        { id: uid(11), codigo: "ext.1", titulo: "Carroceria", descricao: "", ordem: 1, permiteNaoAplica: true, criticidadeSugerida: null },
-        { id: uid(12), codigo: "ext.2", titulo: "Lanterna", descricao: "", ordem: 2, permiteNaoAplica: true, criticidadeSugerida: "alta" },
+        { id: uid(11), codigo: "ext.1", titulo: "Carroceria", descricao: "", ordem: 1, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO },
+        { id: uid(12), codigo: "ext.2", titulo: "Lanterna", descricao: "", ordem: 2, permiteNaoAplica: true, criticidadeSugerida: "alta", aplicavel: SEM_RESTRICAO },
       ],
     },
     {
-      id: uid(20), codigo: "id", nome: "Identificação", icone: "id", ordem: 1,
+      id: uid(20), codigo: "id", nome: "Identificação", icone: "id", ordem: 1, aplicavel: SEM_RESTRICAO,
       itens: [
-        { id: uid(21), codigo: "id.1", titulo: "Placa", descricao: "", ordem: 1, permiteNaoAplica: false, criticidadeSugerida: null },
-        { id: uid(22), codigo: "id.2", titulo: "Adesivo", descricao: "", ordem: 2, permiteNaoAplica: true, criticidadeSugerida: null },
+        { id: uid(21), codigo: "id.1", titulo: "Placa", descricao: "", ordem: 1, permiteNaoAplica: false, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO },
+        { id: uid(22), codigo: "id.2", titulo: "Adesivo", descricao: "", ordem: 2, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO },
       ],
     },
   ],

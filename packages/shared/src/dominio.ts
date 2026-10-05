@@ -26,75 +26,143 @@ export const ORDEM_CRITICIDADE: Record<Criticidade, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Catálogo (configuração; vem da API e fica em cache no aparelho)
+// Operação (configurada pelo ADMIN). `demo` marca dado de demonstração.
 // ---------------------------------------------------------------------------
 
 export const Unidade = z.object({
   id: Id,
-  nome: z.string().min(1), // ex.: "Complexo Carajás"
-  uf: z.string().length(2),
+  nome: z.string().trim().min(1), // site / complexo
+  uf: z.string().length(2).nullable(),
   ativo: z.boolean(),
+  demo: z.boolean(),
 });
 export type Unidade = z.infer<typeof Unidade>;
 
 export const Area = z.object({
   id: Id,
   unidadeId: Id.nullable(), // null = disponível em todas as unidades
-  nome: z.string().min(1), // ex.: "Área operacional"
+  nome: z.string().trim().min(1),
   ativo: z.boolean(),
+  demo: z.boolean(),
 });
 export type Area = z.infer<typeof Area>;
 
 export const Atividade = z.object({
   id: Id,
-  nome: z.string().min(1), // ex.: "Transporte de pessoas"
+  nome: z.string().trim().min(1),
   ativo: z.boolean(),
+  demo: z.boolean(),
 });
 export type Atividade = z.infer<typeof Atividade>;
 
 export const TipoVeiculo = z.object({
   id: Id,
-  codigo: z.string().min(1), // "leve" | "van" | "onibus" | "maquina" | ... (aberto, é configuração)
-  nome: z.string().min(1),
+  codigo: z.string().trim().min(1), // aberto, é configuração
+  nome: z.string().trim().min(1),
   ordem: z.number().int(),
+  ativo: z.boolean(),
 });
 export type TipoVeiculo = z.infer<typeof TipoVeiculo>;
 
+// ---------------------------------------------------------------------------
+// Atributos técnicos de veículo: definidos pelo ADMIN, sem campo fixo por tipo.
+// ---------------------------------------------------------------------------
+
+export const TipoAtributo = z.enum(["texto", "numero", "booleano", "lista"]);
+export type TipoAtributo = z.infer<typeof TipoAtributo>;
+
+export const CODIGO = z.string().trim().regex(/^[a-z][a-z0-9_]*$/, "Use letras minúsculas, números e _ (ex.: tipo_freio).");
+
+export const DefinicaoAtributo = z.object({
+  id: Id,
+  codigo: CODIGO, // chave em Veiculo.atributos e nas regras
+  nome: z.string().trim().min(1), // ex.: "Tipo de freio"
+  tipo: TipoAtributo,
+  /** Só para tipo "lista". */
+  opcoes: z.array(z.string().trim().min(1)),
+  unidadeMedida: z.string().nullable(), // ex.: "lugares", "kg"
+  /** Vazio = vale para todos os tipos de veículo. */
+  tipoVeiculoIds: z.array(Id),
+  obrigatorio: z.boolean(),
+  ordem: z.number().int(),
+  ativo: z.boolean(),
+});
+export type DefinicaoAtributo = z.infer<typeof DefinicaoAtributo>;
+
+export const ValorAtributo = z.union([z.string(), z.number(), z.boolean()]);
+export type ValorAtributo = z.infer<typeof ValorAtributo>;
+export const Atributos = z.record(z.string(), ValorAtributo);
+export type Atributos = z.infer<typeof Atributos>;
+
+// ---------------------------------------------------------------------------
+// Regras de aplicabilidade (motor em regras.ts). Todas as condições preenchidas
+// precisam valer (E). Lista vazia = sem restrição naquele critério.
+// ---------------------------------------------------------------------------
+
+export const OperadorRegra = z.enum(["igual", "diferente", "contem", "maior", "menor", "preenchido"]);
+export type OperadorRegra = z.infer<typeof OperadorRegra>;
+
+export const CondicaoAtributo = z.object({
+  atributo: CODIGO,
+  operador: OperadorRegra,
+  valor: ValorAtributo.nullable(),
+});
+export type CondicaoAtributo = z.infer<typeof CondicaoAtributo>;
+
+export const RegraAplicabilidade = z.object({
+  tipoVeiculoIds: z.array(Id),
+  areaIds: z.array(Id),
+  atividadeIds: z.array(Id),
+  atributos: z.array(CondicaoAtributo),
+});
+export type RegraAplicabilidade = z.infer<typeof RegraAplicabilidade>;
+
+export const SEM_RESTRICAO: RegraAplicabilidade = { tipoVeiculoIds: [], areaIds: [], atividadeIds: [], atributos: [] };
+
+// ---------------------------------------------------------------------------
+// Modelo de checklist
+// ---------------------------------------------------------------------------
+
 export const ItemChecklist = z.object({
   id: Id,
-  codigo: z.string().min(1), // estável entre versões do modelo
-  titulo: z.string().min(1), // ex.: "Estado geral da carroceria"
-  descricao: z.string(), // ex.: "Sem amassados, trincas ou danos estruturais."
+  codigo: z.string().trim().min(1), // estável entre versões do modelo
+  titulo: z.string().trim().min(1),
+  descricao: z.string(),
   ordem: z.number().int(),
   /** Item pode ser marcado "Não se aplica"? */
   permiteNaoAplica: z.boolean(),
   /** Criticidade sugerida ao registrar não conformidade neste item. */
   criticidadeSugerida: Criticidade.nullable(),
+  /** Quando o item aparece. Item fora da regra não é perguntado nem conta no índice. */
+  aplicavel: RegraAplicabilidade,
 });
 export type ItemChecklist = z.infer<typeof ItemChecklist>;
 
 export const CategoriaChecklist = z.object({
   id: Id,
-  codigo: z.string().min(1),
-  nome: z.string().min(1), // ex.: "Itens externos"
-  icone: z.string(), // nome do ícone no app (ex.: "car", "engine")
+  codigo: z.string().trim().min(1),
+  nome: z.string().trim().min(1),
+  icone: z.string(),
   ordem: z.number().int(),
+  aplicavel: RegraAplicabilidade,
   itens: z.array(ItemChecklist),
 });
 export type CategoriaChecklist = z.infer<typeof CategoriaChecklist>;
 
+export const StatusVersao = z.enum(["rascunho", "publicada", "arquivada"]);
+export type StatusVersao = z.infer<typeof StatusVersao>;
+
 /**
- * Modelo de checklist versionado. Uma inspeção grava templateId + versao;
- * mudar o modelo depois não altera inspeções já feitas (auditoria).
- * Listas vazias em tiposVeiculo/areas/atividades = vale para todos.
+ * Modelo de checklist versionado. Só versão PUBLICADA chega ao inspetor.
+ * Versão publicada é imutável; para mudar, cria-se novo rascunho (versao+1).
+ * A inspeção grava modeloId + modeloVersao: o passado nunca muda.
+ * `aplicavel` diz para que contexto o modelo serve (escolherModelo).
  */
 export const ModeloChecklist = z.object({
   id: Id,
-  nome: z.string().min(1),
+  nome: z.string().trim().min(1),
   versao: z.number().int().positive(),
-  tipoVeiculoIds: z.array(Id),
-  areaIds: z.array(Id),
-  atividadeIds: z.array(Id),
+  aplicavel: RegraAplicabilidade,
   categorias: z.array(CategoriaChecklist),
 });
 export type ModeloChecklist = z.infer<typeof ModeloChecklist>;
@@ -105,6 +173,8 @@ export const Catalogo = z.object({
   areas: z.array(Area),
   atividades: z.array(Atividade),
   tiposVeiculo: z.array(TipoVeiculo),
+  atributos: z.array(DefinicaoAtributo),
+  /** Só versões publicadas, a mais recente de cada modelo. */
   modelos: z.array(ModeloChecklist),
 });
 export type Catalogo = z.infer<typeof Catalogo>;
@@ -113,17 +183,27 @@ export type Catalogo = z.infer<typeof Catalogo>;
 // Veículo
 // ---------------------------------------------------------------------------
 
-export const Veiculo = z.object({
-  id: Id,
-  placa: z.string().min(1).nullable(), // máquinas podem não ter placa
-  codigo: z.string().nullable(), // código interno / frota
-  tipoVeiculoId: Id,
-  descricao: z.string().min(1), // ex.: "Caminhonete"
-  marcaModelo: z.string(), // ex.: "Ford Ranger"
-  unidadeId: Id.nullable(),
-  criadoEm: DataHora,
-  atualizadoEm: DataHora,
+export const StatusVeiculo = z.enum(["ativo", "inativo"]);
+export type StatusVeiculo = z.infer<typeof StatusVeiculo>;
+
+export const VeiculoBase = z.object({
+    id: Id,
+    placa: z.string().trim().min(1).nullable(), // máquinas podem não ter placa
+    codigo: z.string().trim().min(1).nullable(), // código interno / frota
+    tipoVeiculoId: Id,
+    fabricante: z.string().trim(),
+    modelo: z.string().trim(),
+    descricao: z.string().trim(), // apelido livre, ex.: "Caminhonete"
+    empresa: z.string().trim().nullable(),
+    unidadeId: Id.nullable(),
+    status: StatusVeiculo,
+    atributos: Atributos,
+    demo: z.boolean(),
+    criadoEm: DataHora,
+    atualizadoEm: DataHora,
 });
+const exigePlacaOuCodigo = (v: { placa: string | null; codigo: string | null }) => !!(v.placa || v.codigo);
+export const Veiculo = VeiculoBase.refine(exigePlacaOuCodigo, { message: "Informe a placa ou o código interno.", path: ["placa"] });
 export type Veiculo = z.infer<typeof Veiculo>;
 
 // ---------------------------------------------------------------------------
@@ -170,6 +250,8 @@ export const Inspecao = z.object({
   atividadeId: Id,
   veiculoId: Id,
   inspetorId: Id,
+  /** Atributos do veículo no momento da inspeção (as regras usam este retrato, não o cadastro atual). */
+  atributosVeiculo: Atributos,
   status: StatusInspecao,
   iniciadaEm: DataHora,
   concluidaEm: DataHora.nullable(),
@@ -195,7 +277,7 @@ export type Evidencia = z.infer<typeof Evidencia>;
 // Usuário / sessão
 // ---------------------------------------------------------------------------
 
-export const Papel = z.enum(["inspetor", "gestor", "admin"]);
+export const Papel = z.enum(["admin", "inspetor"]);
 export type Papel = z.infer<typeof Papel>;
 
 export const Usuario = z.object({

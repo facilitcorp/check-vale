@@ -1,20 +1,14 @@
 import type { ModeloChecklist } from "./dominio";
+import { avaliarRegra, especificidade, type ContextoRegras } from "./regras";
 
 /**
- * Escolhe o modelo de checklist para o contexto da inspeção.
- * Um modelo serve se cada filtro dele estiver vazio (= todos) ou contiver o valor.
- * Entre os que servem, vence o mais específico (mais filtros preenchidos);
- * empate → maior versão.
+ * Escolhe o modelo de checklist para o contexto da inspeção: entre os que
+ * servem (regra `aplicavel` do modelo), vence o mais específico; empate → maior versão.
  */
-export function escolherModelo(
-  modelos: readonly ModeloChecklist[],
-  ctx: { tipoVeiculoId: string; areaId: string; atividadeId: string },
-): ModeloChecklist | null {
-  const serve = (lista: string[], v: string) => lista.length === 0 || lista.includes(v);
-  const peso = (m: ModeloChecklist) => [m.tipoVeiculoIds, m.areaIds, m.atividadeIds].filter((l) => l.length > 0).length;
+export function escolherModelo(modelos: readonly ModeloChecklist[], ctx: ContextoRegras): ModeloChecklist | null {
   return (
     modelos
-      .filter((m) => serve(m.tipoVeiculoIds, ctx.tipoVeiculoId) && serve(m.areaIds, ctx.areaId) && serve(m.atividadeIds, ctx.atividadeId))
-      .sort((a, b) => peso(b) - peso(a) || b.versao - a.versao)[0] ?? null
+      .filter((m) => avaliarRegra(m.aplicavel, ctx))
+      .sort((a, b) => especificidade(b.aplicavel) - especificidade(a.aplicavel) || b.versao - a.versao)[0] ?? null
   );
 }

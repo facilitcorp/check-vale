@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { DataHora, Evidencia, Id, Inspecao, Usuario, Veiculo } from "./dominio";
+import {
+  Area, Atividade, CategoriaChecklist, DataHora, DefinicaoAtributo, Evidencia, Id, Inspecao, ModeloChecklist, Papel,
+  RegraAplicabilidade, StatusVersao, TipoVeiculo, Unidade, Usuario, Veiculo, VeiculoBase,
+} from "./dominio";
 
 /**
  * Contrato HTTP app ↔ API (prefixo /api). Toda rota, exceto /auth/login e
@@ -93,3 +96,66 @@ export const ErroApi = z.object({
   mensagem: z.string(), // texto para o usuário, em PT-BR
 });
 export type ErroApi = z.infer<typeof ErroApi>;
+
+// ---------------------------------------------------------------------------
+// Administração (prefixo /api/admin, permissão config:* / modelo:publicar / usuario:gerenciar)
+//
+//   GET|POST /admin/unidades        PATCH /admin/unidades/:id
+//   GET|POST /admin/areas           PATCH /admin/areas/:id
+//   GET|POST /admin/atividades      PATCH /admin/atividades/:id
+//   GET|POST /admin/tipos-veiculo   PATCH /admin/tipos-veiculo/:id
+//   GET|POST /admin/atributos       PATCH /admin/atributos/:id
+//   GET|POST /admin/veiculos        PATCH /admin/veiculos/:id
+//   GET|POST /admin/usuarios        PATCH /admin/usuarios/:id
+//   GET  /admin/modelos                               → ModeloResumo[]
+//   POST /admin/modelos               {nome}          → VersaoModelo (rascunho v1)
+//   GET  /admin/modelos/:id/versoes/:v                → VersaoModelo
+//   PUT  /admin/modelos/:id/versoes/:v RascunhoEntrada → VersaoModelo (só rascunho)
+//   POST /admin/modelos/:id/rascunho                  → VersaoModelo (cópia da última, versao+1)
+//   POST /admin/modelos/:id/versoes/:v/publicar       → VersaoModelo | 422 {erros}
+//   POST /admin/modelos/:id/versoes/:v/previa  ContextoRegras → ModeloChecklist recortado
+// Exclusão física não existe: desativa-se (ativo=false / status=inativo). Auditoria preserva o histórico.
+// ---------------------------------------------------------------------------
+
+
+export const UnidadeEntrada = Unidade.omit({ id: true, demo: true });
+export const AreaEntrada = Area.omit({ id: true, demo: true });
+export const AtividadeEntrada = Atividade.omit({ id: true, demo: true });
+export const TipoVeiculoEntrada = TipoVeiculo.omit({ id: true });
+export const AtributoEntrada = DefinicaoAtributo.omit({ id: true });
+export const VeiculoEntrada = VeiculoBase.omit({ id: true, demo: true, criadoEm: true, atualizadoEm: true });
+
+export const UsuarioAdmin = z.object({ id: Id, nome: z.string(), email: z.email(), papel: Papel, ativo: z.boolean(), demo: z.boolean() });
+export type UsuarioAdmin = z.infer<typeof UsuarioAdmin>;
+export const UsuarioEntrada = z.object({
+  nome: z.string().trim().min(1),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+  papel: Papel,
+  ativo: z.boolean(),
+  /** Obrigatória na criação; na edição, só se for trocar. */
+  senha: z.string().min(8, "Senha com no mínimo 8 caracteres.").optional(),
+});
+
+export const VersaoModelo = ModeloChecklist.extend({
+  status: StatusVersao,
+  demo: z.boolean(),
+  criadaEm: DataHora,
+  publicadaEm: DataHora.nullable(),
+});
+export type VersaoModelo = z.infer<typeof VersaoModelo>;
+
+export const ModeloResumo = z.object({
+  id: Id,
+  nome: z.string(),
+  demo: z.boolean(),
+  versoes: z.array(z.object({ versao: z.number().int(), status: StatusVersao, publicadaEm: DataHora.nullable(), itens: z.number().int() })),
+});
+export type ModeloResumo = z.infer<typeof ModeloResumo>;
+
+export const NovoModeloEntrada = z.object({ nome: z.string().trim().min(1) });
+export const RascunhoEntrada = z.object({
+  nome: z.string().trim().min(1),
+  aplicavel: RegraAplicabilidade,
+  categorias: z.array(CategoriaChecklist),
+});
+export type RascunhoEntrada = z.infer<typeof RascunhoEntrada>;
