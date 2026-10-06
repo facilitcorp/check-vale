@@ -28,8 +28,17 @@ export async function carregarSessao(): Promise<Usuario | null> {
   return usuario;
 }
 
-export async function entrar(email: string, senha: string): Promise<Usuario> {
-  const r = await chamarApi<LoginSaida>("/auth/login", { method: "POST", body: JSON.stringify({ email, senha }) });
+export function entrar(email: string, senha: string): Promise<Usuario> {
+  return abrirSessao("/auth/login", email, senha);
+}
+
+/** Autocadastro temporário: cria a conta de inspetor e já entra. */
+export function cadastrar(email: string, senha: string): Promise<Usuario> {
+  return abrirSessao("/auth/cadastro", email, senha);
+}
+
+async function abrirSessao(caminho: string, email: string, senha: string): Promise<Usuario> {
+  const r = await chamarApi<LoginSaida>(caminho, { method: "POST", body: JSON.stringify({ email, senha }) });
   await banco.sessao.put({ chave: "atual", token: r.token, expiraEm: r.expiraEm, usuario: r.usuario });
   definirToken(r.token);
   usuario = r.usuario;

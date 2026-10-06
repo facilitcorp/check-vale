@@ -25,6 +25,8 @@ export interface Config {
   semearDemo: boolean;
   /** Senha dos usuários DEMO. Fora de produção cai no padrão do README. */
   senhaDemo: string;
+  /** Temporário, para teste: libera POST /api/auth/cadastro. Em produção só com AUTOCADASTRO=1. */
+  autocadastro: boolean;
 }
 
 declare const __VERSAO__: string | undefined;
@@ -38,6 +40,7 @@ export function lerConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const jwtSecret = env.JWT_SECRET ?? (producao ? "" : randomBytes(32).toString("hex"));
   if (producao && jwtSecret.length < 32) throw new Error("JWT_SECRET ausente ou curto (mínimo 32 caracteres).");
   const semearDemo = env.SEMEAR_DEMO ? env.SEMEAR_DEMO === "1" : !producao;
+  const autocadastro = env.AUTOCADASTRO ? env.AUTOCADASTRO === "1" : !producao;
   const senhaDemo = env.SENHA_DEMO || (producao ? "" : SENHA_DEMO_PADRAO);
   if (producao) {
     // Ambiente publicado sobe completo ou não sobe: o padrão silencioso perde dado ou abre acesso.
@@ -62,5 +65,6 @@ export function lerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     origensCors: (env.CORS_ORIGENS ?? "http://localhost:5173").split(",").map((s) => s.trim()).filter(Boolean),
     semearDemo,
     senhaDemo,
+    autocadastro,
   };
 }

@@ -5,10 +5,11 @@ import {
 } from "./dominio";
 
 /**
- * Contrato HTTP app ↔ API (prefixo /api). Toda rota, exceto /auth/login e
- * /saude, exige `Authorization: Bearer <token>`.
+ * Contrato HTTP app ↔ API (prefixo /api). Toda rota, exceto /auth/login,
+ * /auth/cadastro e /saude, exige `Authorization: Bearer <token>`.
  *
  *   POST /api/auth/login              LoginEntrada → LoginSaida
+ *   POST /api/auth/cadastro           CadastroEntrada → LoginSaida (só com AUTOCADASTRO=1)
  *   GET  /api/auth/eu                 → Usuario
  *   GET  /api/catalogo                → Catalogo (ETag = catalogo.versao)
  *   GET  /api/veiculos?desde=<iso>    → { veiculos: Veiculo[], servidorEm }
@@ -35,6 +36,18 @@ export const LoginSaida = z.object({
   usuario: Usuario,
 });
 export type LoginSaida = z.infer<typeof LoginSaida>;
+
+/** Autocadastro temporário, para teste: a conta nasce inspetor e já sai logada. */
+export const CadastroEntrada = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email("Informe um e-mail válido.")),
+  // bcrypt ignora o que passa de 72 bytes: limitar evita senha que "confere" só no começo.
+  senha: z.string().min(8, "A senha precisa de pelo menos 8 caracteres.").max(72, "A senha pode ter no máximo 72 caracteres."),
+});
+export type CadastroEntrada = z.infer<typeof CadastroEntrada>;
+
+/** GET /api/saude: o app usa `autocadastro` para mostrar ou não o "Crie seu cadastro". */
+export const Saude = z.object({ ok: z.boolean(), versao: z.string(), revisao: z.string().nullable(), autocadastro: z.boolean() });
+export type Saude = z.infer<typeof Saude>;
 
 // ---------------------------------------------------------------------------
 // Sincronização

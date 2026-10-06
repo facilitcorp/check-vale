@@ -26,6 +26,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/entrar" element={usuario ? <Navigate to="/" replace /> : <Entrar />} />
+        <Route path="/cadastro" element={usuario ? <Navigate to="/" replace /> : <Entrar modo="cadastro" />} />
         <Route path="/nova" element={<Protegida><NovaVerificacao /></Protegida>} />
         <Route path="/nova/veiculo" element={<Protegida><SelecionarVeiculo /></Protegida>} />
         <Route path="/veiculos/novo" element={<Protegida><CadastroVeiculo /></Protegida>} />

@@ -40,3 +40,15 @@ describe("lerConfig em produção: sobe completo ou não sobe", () => {
     expect(lerConfig({ NODE_ENV: "test" }).senhaDemo).toBe("checkvale");
   });
 });
+
+describe("autocadastro (temporário, para teste)", () => {
+  it("em produção fica desligado, a não ser com AUTOCADASTRO=1", () => {
+    expect(lerConfig(PROD).autocadastro).toBe(false);
+    expect(lerConfig({ ...PROD, AUTOCADASTRO: "1" }).autocadastro).toBe(true);
+  });
+
+  it("fora de produção fica ligado, a não ser com AUTOCADASTRO=0", () => {
+    expect(lerConfig({ NODE_ENV: "test" }).autocadastro).toBe(true);
+    expect(lerConfig({ NODE_ENV: "test", AUTOCADASTRO: "0" }).autocadastro).toBe(false);
+  });
+});

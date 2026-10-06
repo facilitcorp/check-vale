@@ -100,10 +100,10 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
   app.get("/api/saude", async (_req, rep) => {
     rep.header("cache-control", "no-store");
     await db.query("SELECT 1");
-    return { ok: true, versao: cfg.versao, revisao: cfg.revisao };
+    return { ok: true, versao: cfg.versao, revisao: cfg.revisao, autocadastro: cfg.autocadastro };
   });
 
-  await app.register(rotasAuth, { prefix: "/api/auth" });
+  await app.register(rotasAuth, { prefix: "/api/auth", autocadastro: cfg.autocadastro });
   await app.register(async (privado) => {
     privado.addHook("onRequest", app.autenticar);
     await privado.register(rotasCatalogo);
