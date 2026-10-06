@@ -26,6 +26,8 @@ Escuta na porta `8080`. Saúde: `GET /api/saude` (faz `SELECT 1` no banco).
 
 Migrações rodam sozinhas na subida (tabela `_migracoes`).
 
+**Em produção a API se recusa a subir** (erro claro no log) quando falta `JWT_SECRET`, quando falta `DATABASE_URL` (o banco em memória perderia tudo a cada reinício), quando falta `UPLOADS_BUCKET` (as fotos iriam para disco efêmero) e quando `SEMEAR_DEMO=1` vem sem `SENHA_DEMO` de 12+ caracteres (a senha `checkvale` do README nunca vale num ambiente publicado). `DATA_DIR` e `UPLOADS_DIR` explícitos só servem para máquina com disco persistente.
+
 ## Conferência depois de publicar
 
 1. `GET /api/saude` → `{"ok":true}`

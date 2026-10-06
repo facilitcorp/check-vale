@@ -8,7 +8,7 @@ import { semearDemo } from "./semente/semear";
 const cfg = lerConfig();
 const db = await abrirDb(cfg);
 await migrar(db);
-if (cfg.semearDemo && (await semearDemo(db, process.env.SENHA_DEMO ?? "checkvale"))) {
+if (cfg.semearDemo && (await semearDemo(db, cfg.senhaDemo))) {
   console.log("Banco vazio: catálogo e usuários de demonstração criados (inspetor@checkvale.dev).");
 }
 const app = await criarApp(cfg, db, cfg.uploadsBucket ? armazenamentoBucket(cfg.uploadsBucket) : armazenamentoLocal(cfg.uploadsDir));
