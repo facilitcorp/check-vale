@@ -92,3 +92,16 @@ cd qa/tela && WEB=https://<staging> INSPETOR_EMAIL=... INSPETOR_SENHA=... ADMIN_
 ```
 
 As credenciais vêm só do ambiente. Cada rodada cria 2 verificações DEMO no staging. As capturas `stg-*.png` e o `staging.json` ficam em `saida/`.
+
+## Tour visual
+
+`qa/tela/tour.mjs` captura todas as telas em 390×844 (celular) e 1440×900 (desktop), com dados DEMO. Faz uma verificação de verdade (2 NCs com foto, uma crítica) e passa pelo Admin. Com banco zerado, um comando só:
+
+```bash
+npm ci && npm run build
+bash qa/tela/rodar-tour.sh   # PORTA=3177 SAIDA=qa/tela/saida por padrão
+```
+
+O `rodar-tour.sh` sobe a API do build servindo o app na mesma origem, com banco e uploads temporários. As capturas `tour-*.png` ficam em `saida/`. O rascunho v2 das telas 15b/16 existe só nesse banco temporário; nada é publicado.
+
+Contra outro ambiente: `WEB=https://... INSPETOR_EMAIL=... INSPETOR_SENHA=... ADMIN_EMAIL=... ADMIN_SENHA=... node qa/tela/tour.mjs`. Fora do localhost, as credenciais vêm só do ambiente, cada rodada cria 2 verificações DEMO e o rascunho só é criado com `CRIAR_RASCUNHO=1`.
