@@ -7,7 +7,7 @@ export interface Armazenamento {
   ler(chave: string): Promise<Buffer | null>;
 }
 
-const CHAVE_VALIDA = /^[a-z0-9-]+(\/[a-z0-9.-]+)*$/;
+export const CHAVE_VALIDA = /^[a-z0-9-]+(\/[a-z0-9.-]+)*$/;
 
 export function armazenamentoLocal(dir: string): Armazenamento {
   const raiz = path.resolve(dir);
