@@ -15,6 +15,7 @@ import { rotasEvidencias } from "./rotas/evidencias";
 import { rotasInspecoes } from "./rotas/inspecoes";
 import { rotasSync } from "./rotas/sync";
 import { rotasVeiculos } from "./rotas/veiculos";
+import { servirWeb } from "./web";
 
 export interface Sessao {
   sub: string;
@@ -108,6 +109,8 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
     await privado.register(rotasEvidencias);
     await privado.register(rotasAdmin, { prefix: "/admin" });
   }, { prefix: "/api" });
+
+  if (cfg.webDir) await servirWeb(app, cfg.webDir);
 
   return app;
 }
