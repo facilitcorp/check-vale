@@ -8,7 +8,7 @@ import { Icone } from '../componentes/Icone';
 import { Carregando, Moldura, SeloDemo, SeloSituacao } from '../componentes/Moldura';
 import { rotas } from '../rotas';
 import { dataHora, identificacaoVeiculo, nomeVeiculo, useDescricaoInspecao } from './formatos';
-import { faixa } from './TelasResultado';
+import { SeloVeredito, tomDoResultado } from './TelasResultado';
 
 /** Histórico: todas as verificações deste aparelho, da mais recente para a mais antiga. */
 export function TelaHistorico() {
@@ -41,7 +41,7 @@ export function LinhaHistorico({ verificacao: v }: { verificacao: Inspecao }) {
   const situacao = useSituacaoSyncInspecao(v.id)?.situacao;
   const { veiculo } = useDescricaoInspecao(v);
   const concluida = v.status === 'concluida';
-  const indice = concluida && resultado ? resultado.indice : null;
+  const final = concluida && resultado ? resultado : null;
   const destino = concluida ? rotas.resultado(v.id) : rotas.categorias(v.id);
   const data = dataHora(v.concluidaEm ?? v.iniciadaEm);
 
@@ -54,14 +54,17 @@ export function LinhaHistorico({ verificacao: v }: { verificacao: Inspecao }) {
         </span>
         <span className="sub">{nomeVeiculo(veiculo)}</span>
         <span className="dica">{data}</span>
-        <SeloSituacao situacao={situacao} />
+        <span className="linha__selos">
+          {final && <SeloVeredito resultado={final} compacto />}
+          <SeloSituacao situacao={situacao} />
+        </span>
       </span>
       <span className="linha__resultado">
         {!concluida ? (
           <span className="resultado resultado--andamento">Em andamento</span>
-        ) : indice !== null ? (
-          <span className={`resultado resultado--${faixa(indice)}`} aria-label={`Índice de prontidão ${indice}%`}>
-            {indice}%
+        ) : final ? (
+          <span className={`resultado resultado--${tomDoResultado(final)}`} aria-label={`Índice de prontidão ${final.indice}%`}>
+            {final.indice}%
           </span>
         ) : (
           <span className="resultado resultado--na">{dados.carregando ? '…' : dados.modelo === null ? 'Indisponível' : '—'}</span>

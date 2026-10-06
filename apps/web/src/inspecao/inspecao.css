@@ -181,6 +181,15 @@
 .anel__texto { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .anel__texto strong { font-size: 2.2rem; }
 .anel__texto small { color: var(--texto-suave); font-size: 0.75rem; }
+/* veredito: mesma paleta dos selos de resultado */
+.veredito { display: inline-grid; justify-items: center; gap: 4px; margin-top: 6px; }
+.veredito__selo { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 1rem; }
+.veredito__motivo { color: var(--texto-suave); font-size: 0.8rem; }
+.veredito--compacto .veredito__selo { padding: 2px 8px; gap: 4px; font-size: 0.75rem; }
+.veredito--bom .veredito__selo { background: #e7f6ec; color: #166534; }
+.veredito--medio .veredito__selo { background: #fff6dc; color: #854d0e; }
+.veredito--ruim .veredito__selo { background: #fdeaea; color: #991b1b; }
+.linha__selos { display: flex; flex-wrap: wrap; gap: 6px; }
 .cartoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cartao {
   background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);

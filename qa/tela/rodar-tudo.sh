@@ -21,7 +21,7 @@ parar_api() { kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null |
 trap 'for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; pkill -f "tsx src/servidor.ts" 2>/dev/null || true; pkill -f "vite preview --port $PORTA_WEB" 2>/dev/null || true' EXIT  # o npx sai, mas o node filho do preview fica com a porta
 
 (cd apps/web && API_URL="http://localhost:$PORTA_API" exec npx vite preview --port "$PORTA_WEB" --strictPort > "$SAIDA/web.log" 2>&1) & PIDS+=($!)
-(cd qa/tela && [ -d node_modules ] || npm ci --no-audit --no-fund >/dev/null && npx playwright install chromium >/dev/null)
+(cd qa/tela && { [ -d node_modules ] || npm ci --no-audit --no-fund >/dev/null; } && npx playwright install chromium >/dev/null)
 [ -f "$SAIDA/foto-grande.jpg" ] || node qa/tela/gerar-fotos.mjs
 
 subir_api

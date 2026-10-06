@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import type { Criticidade, Inspecao, ModeloChecklist, ResultadoInspecao } from '@checkvale/shared';
+import { ROTULO_SITUACAO, tomDaSituacao, type Criticidade, type Inspecao, type ModeloChecklist, type ResultadoInspecao } from '@checkvale/shared';
 import { useSituacaoSyncInspecao } from '../../dados/estadoSync';
 import { useChecklistDaInspecao } from '../../dados/ganchos';
 import { abrirRelatorio } from '../../lib/relatorio';
@@ -18,6 +18,38 @@ export function faixa(percentual: number | null): 'bom' | 'medio' | 'ruim' | 'na
   if (percentual >= 80) return 'bom';
   if (percentual >= 50) return 'medio';
   return 'ruim';
+}
+
+type Tom = ReturnType<typeof faixa>;
+const GRAVIDADE: Record<Tom, number> = { na: 0, bom: 1, medio: 2, ruim: 3 };
+
+/** Cor do resultado: a pior entre a faixa do índice e o veredito. NC crítica nunca sai em verde. */
+export function tomDoResultado(r: Pick<ResultadoInspecao, 'indice' | 'situacao'>): Tom {
+  const a = faixa(r.indice);
+  const b = tomDaSituacao(r.situacao);
+  return GRAVIDADE[b] > GRAVIDADE[a] ? b : a;
+}
+
+const ICONE_TOM: Record<Tom, string> = { bom: 'check', medio: 'alerta', ruim: 'x', na: 'menos' };
+
+/** Veredito da verificação (Apto / Apto com restrições / Não apto), calculado em calcularResultado. */
+export function SeloVeredito({ resultado: r, compacto }: { resultado: ResultadoInspecao; compacto?: boolean }) {
+  if (r.situacao === 'incompleta') return null;
+  const tom = tomDaSituacao(r.situacao);
+  const criticas = r.planoAcao.filter((a) => a.criticidade === 'critica').length;
+  return (
+    <span className={`veredito veredito--${tom} ${compacto ? 'veredito--compacto' : ''}`}>
+      <span className="veredito__selo">
+        <Icone nome={ICONE_TOM[tom]} tamanho={compacto ? 12 : 18} />
+        {ROTULO_SITUACAO[r.situacao]}
+      </span>
+      {!compacto && criticas > 0 && (
+        <small className="veredito__motivo">
+          {criticas === 1 ? '1 não conformidade crítica impede a operação.' : `${criticas} não conformidades críticas impedem a operação.`}
+        </small>
+      )}
+    </span>
+  );
 }
 
 type Concluida = { verificacao: Inspecao; modelo: ModeloChecklist; resultado: ResultadoInspecao };
@@ -79,7 +111,10 @@ export function TelaResultado() {
       <p className="centro">
         <SeloSituacao situacao={situacao} />
       </p>
-      <Anel percentual={r.indice} />
+      <p className="centro">
+        <SeloVeredito resultado={r} />
+      </p>
+      <Anel percentual={r.indice} tom={tomDoResultado(r)} />
       <div className="cartoes">
         {/* ponto de atenção é um conforme com observação: sai daqui para não contar duas vezes */}
         <Cartao tom="bom" icone="check" valor={r.conformes - r.pontosAtencao} rotulo="Itens conformes" />
@@ -91,11 +126,11 @@ export function TelaResultado() {
   );
 }
 
-function Anel({ percentual }: { percentual: number }) {
+function Anel({ percentual, tom }: { percentual: number; tom: Tom }) {
   const raio = 52;
   const volta = 2 * Math.PI * raio;
   return (
-    <div className={`anel anel--${faixa(percentual)}`} role="img" aria-label={`Índice de prontidão ${percentual}%`}>
+    <div className={`anel anel--${tom}`} role="img" aria-label={`Índice de prontidão ${percentual}%`}>
       <svg viewBox="0 0 120 120" width="168" height="168">
         <circle cx="60" cy="60" r={raio} className="anel__fundo" />
         <circle

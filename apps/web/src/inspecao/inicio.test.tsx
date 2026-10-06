@@ -73,6 +73,7 @@ describe('tela inicial do inspetor', () => {
     const linha = await screen.findByRole('button', { name: /PQO1C83/ }, ESPERA);
     await within(linha).findByLabelText('Índice de prontidão 100%', undefined, ESPERA);
     await within(linha).findByText('Tudo enviado', undefined, ESPERA);
+    within(linha).getByText('Apto');
     fireEvent.click(screen.getByRole('link', { name: 'Ver histórico' }));
     await screen.findByRole('heading', { name: 'Histórico' }, ESPERA);
     fireEvent.click(await screen.findByRole('button', { name: /PQO1C83/ }, ESPERA));

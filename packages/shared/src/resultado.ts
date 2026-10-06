@@ -24,6 +24,19 @@ import {
 
 export type Situacao = "apto" | "apto_com_restricoes" | "nao_apto" | "incompleta";
 
+/** Rótulo da situação (veredito): o mesmo texto na tela do app e no PDF. */
+export const ROTULO_SITUACAO: Record<Situacao, string> = {
+  apto: "Apto",
+  apto_com_restricoes: "Apto com restrições",
+  nao_apto: "Não apto",
+  incompleta: "Inspeção incompleta",
+};
+
+/** Tom de cor da situação: NC crítica nunca aparece em verde, por maior que seja o índice. */
+export function tomDaSituacao(s: Situacao): "bom" | "medio" | "ruim" | "na" {
+  return s === "apto" ? "bom" : s === "apto_com_restricoes" ? "medio" : s === "nao_apto" ? "ruim" : "na";
+}
+
 export interface ResumoCategoria {
   categoriaId: string;
   nome: string;
