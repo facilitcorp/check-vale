@@ -7,6 +7,10 @@ RAIZ=$(cd "$(dirname "$0")/../.." && pwd); cd "$RAIZ"
 PORTA_API=${PORTA_API:-3100}; PORTA_WEB=${PORTA_WEB:-5199}
 export API="http://localhost:$PORTA_API/api" WEB="http://localhost:$PORTA_WEB"
 export SAIDA=${SAIDA:-$RAIZ/qa/tela/saida}; mkdir -p "$SAIDA"; rm -f "$SAIDA"/*.log "$SAIDA"/*.json
+# Porta ocupada (API ou preview de uma rodada anterior) faz o roteiro falar com o banco errado e falhar sem pista.
+for porta in "$PORTA_API" "$PORTA_WEB"; do
+  if (exec 3<>"/dev/tcp/127.0.0.1/$porta") 2>/dev/null; then echo "Porta $porta ocupada: encerre o processo que a usa (ou mude PORTA_API/PORTA_WEB)."; exit 2; fi
+done
 export DATA_DIR=$(mktemp -d) UPLOADS_DIR=$(mktemp -d)
 echo "banco: $DATA_DIR  uploads: $UPLOADS_DIR  saída: $SAIDA"
 
@@ -14,7 +18,7 @@ PIDS=()
 subir_api() { (cd apps/api && PORT=$PORTA_API CORS_ORIGENS=$WEB exec npx tsx src/servidor.ts >> "$SAIDA/api.log" 2>&1) & PIDS+=($!); API_PID=$!
   for _ in $(seq 60); do curl -sf "$API/saude" >/dev/null 2>&1 && return 0; sleep 1; done; echo "API não subiu"; exit 1; }
 parar_api() { kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; pkill -f "tsx src/servidor.ts" 2>/dev/null || true; sleep 1; } # o PGlite aceita um processo só
-trap 'for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; pkill -f "tsx src/servidor.ts" 2>/dev/null || true' EXIT
+trap 'for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; pkill -f "tsx src/servidor.ts" 2>/dev/null || true; pkill -f "vite preview --port $PORTA_WEB" 2>/dev/null || true' EXIT  # o npx sai, mas o node filho do preview fica com a porta
 
 (cd apps/web && API_URL="http://localhost:$PORTA_API" exec npx vite preview --port "$PORTA_WEB" --strictPort > "$SAIDA/web.log" 2>&1) & PIDS+=($!)
 (cd qa/tela && [ -d node_modules ] || npm ci --no-audit --no-fund >/dev/null && npx playwright install chromium >/dev/null)
