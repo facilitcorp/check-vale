@@ -82,3 +82,13 @@ No fim, ele imprime o resumo por parte e sai com 1 se algo falhou. Capturas, JSO
 Cada script também roda sozinho, com a API e o app no ar: `WEB`, `API`, `SAIDA`, `IDS_ADMIN` e, na Parte 2, `UPLOADS_DIR`, a mesma pasta de uploads da API.
 
 As esperas são por estado, não por tempo. Um cartão em "Carregando…" não é lido como resultado: era isso que dava o falso ✘ da 1ª rodada.
+
+## Ambiente publicado (staging)
+
+`qa/tela/staging.mjs` passa pelo app só pelo navegador, sem banco nem pasta de uploads, usando o primeiro cadastro DEMO que o ambiente oferecer. Roda o inspetor em 390×844 (com uma NC feita sem rede) e em desktop: login, Home, checklist, NC com foto, resultado, PDF, plano de ação, histórico e bloqueio do `/admin`. Depois o Admin nas duas telas. Também confere HTTPS, manifest e service worker, e lista todo erro de console, exceção e resposta HTTP ≥ 400.
+
+```bash
+cd qa/tela && WEB=https://<staging> INSPETOR_EMAIL=... INSPETOR_SENHA=... ADMIN_EMAIL=... ADMIN_SENHA=... node staging.mjs
+```
+
+As credenciais vêm só do ambiente. Cada rodada cria 2 verificações DEMO no staging. As capturas `stg-*.png` e o `staging.json` ficam em `saida/`.
