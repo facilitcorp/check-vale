@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SEM_RESTRICAO, type ModeloChecklist, type Resposta } from "./dominio";
 import { Resposta as RespostaSchema } from "./dominio";
-import { calcularResultado } from "./resultado";
+import { calcularResultado, ROTULO_SITUACAO, tomDaSituacao } from "./resultado";
 
 const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const T0 = "2026-10-05T10:00:00.000Z";
@@ -61,6 +61,14 @@ describe("calcularResultado", () => {
   it("NC não crítica: apto com restrições", () => {
     const r = calcularResultado(modelo, [nc(uid(11), "alta"), ok(uid(12)), ok(uid(21)), ok(uid(22))]);
     expect(r.situacao).toBe("apto_com_restricoes");
+  });
+
+  it("veredito: rótulo e tom (NC crítica nunca é verde)", () => {
+    expect(ROTULO_SITUACAO.nao_apto).toBe("Não apto");
+    expect(tomDaSituacao("nao_apto")).toBe("ruim");
+    expect(tomDaSituacao("apto_com_restricoes")).toBe("medio");
+    expect(tomDaSituacao("apto")).toBe("bom");
+    expect(tomDaSituacao("incompleta")).toBe("na");
   });
 
   it("resposta mais recente do item é a que vale", () => {

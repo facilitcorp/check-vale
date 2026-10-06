@@ -1,16 +1,12 @@
 import PDFDocument from "pdfkit";
-import { aplicarRegras, calcularResultado, contextoDaInspecao, type Criticidade, type Inspecao, type Situacao } from "@checkvale/shared";
+import { aplicarRegras, calcularResultado, contextoDaInspecao, ROTULO_SITUACAO, tomDaSituacao, type Criticidade, type Inspecao } from "@checkvale/shared";
 import type { Db } from "./db";
 import { carregarModelo } from "./mapeamento";
 
 const VERDE = "#0E5B45";
 const CINZA = "#5B6670";
-const ROTULO_SITUACAO: Record<Situacao, string> = {
-  apto: "APTO",
-  apto_com_restricoes: "APTO COM RESTRIÇÕES",
-  nao_apto: "NÃO APTO",
-  incompleta: "INSPEÇÃO INCOMPLETA",
-};
+/** Cor do veredito: a mesma regra de tom do app (NÃO APTO nunca sai em verde). */
+const COR_TOM = { bom: VERDE, medio: "#B45309", ruim: "#B91C1C", na: CINZA } as const;
 const ROTULO_CRITICIDADE: Record<Criticidade, string> = { critica: "Crítica", alta: "Alta", media: "Média", baixa: "Baixa" };
 
 const fmt = (iso: string | null) =>
@@ -52,7 +48,8 @@ export async function gerarRelatorioPdf(db: Db, insp: Inspecao): Promise<Buffer>
   linha("Identificador", insp.id);
   doc.moveDown();
 
-  doc.fillColor(VERDE).fontSize(16).font("Helvetica-Bold").text(`${ROTULO_SITUACAO[res.situacao]} — índice de prontidão ${res.indice}%`);
+  doc.fillColor(COR_TOM[tomDaSituacao(res.situacao)]).fontSize(16).font("Helvetica-Bold")
+    .text(`${ROTULO_SITUACAO[res.situacao].toUpperCase()} — índice de prontidão ${res.indice}%`);
   doc.fillColor("#111").fontSize(10).font("Helvetica")
     .text(`${res.conformes} conformes · ${res.naoConformes} não conformes · ${res.naoAplica} não se aplicam · ${res.respondidos}/${res.total} respondidos`);
   doc.moveDown();

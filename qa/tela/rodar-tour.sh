@@ -16,5 +16,5 @@ trap 'kill $API_PID 2>/dev/null || true' EXIT
 for _ in $(seq 60); do curl -sf "$WEB/api/saude" >/dev/null 2>&1 && break; sleep 1; done
 curl -sf "$WEB/api/saude" >/dev/null || { echo "API não subiu (veja $SAIDA/tour-api.log)"; exit 1; }
 
-(cd qa/tela && [ -d node_modules ] || npm ci --no-audit --no-fund >/dev/null && npx playwright install chromium >/dev/null)
+(cd qa/tela && { [ -d node_modules ] || npm ci --no-audit --no-fund >/dev/null; } && npx playwright install chromium >/dev/null)
 node qa/tela/tour.mjs

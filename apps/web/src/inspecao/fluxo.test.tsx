@@ -100,7 +100,11 @@ describe('fluxo da inspeção (telas 5–12) na base real', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir verificação' }, ESPERA));
     await screen.findByRole('heading', { name: 'Verificação concluída!' }, ESPERA);
     const esperado = Math.round(((ITENS_LEVE.length - 2) / (ITENS_LEVE.length - 1)) * 100);
-    screen.getByRole('img', { name: `Índice de prontidão ${esperado}%` });
+    const anel = screen.getByRole('img', { name: `Índice de prontidão ${esperado}%` });
+    // NC crítica: veredito "Não apto" na tela e anel vermelho, mesmo com índice alto
+    screen.getByText('Não apto');
+    screen.getByText('1 não conformidade crítica impede a operação.');
+    expect(anel.className).toContain('anel--ruim');
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalhes' }));
     await screen.findByRole('heading', { name: 'Resultado por categoria' }, ESPERA);
