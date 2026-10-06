@@ -20,7 +20,9 @@ em `docs/STAGING.md`.
 | `UPLOADS_BUCKET` | variável | bucket do ambiente; a conta de serviço precisa de `roles/storage.objectAdmin` só nele |
 | `SENHA_DEMO` | segredo | 12+ caracteres, obrigatória quando `SEMEAR_DEMO=1` |
 
-Opcionais: `SEMEAR_DEMO` (`1` em staging, **vazio em produção**), `CORS_ORIGENS` (URL do serviço),
+Opcionais: `SEMEAR_DEMO` (`1` em staging, **vazio em produção**), `AUTOCADASTRO` (`1` liga o
+"Crie seu cadastro" em `/cadastro`, temporário, para teste: a pessoa escolhe e-mail e senha e entra
+como inspetor; **vazio em produção**), `CORS_ORIGENS` (URL do serviço),
 `JWT_VALIDADE` (padrão `12h`), `PROXIES_CONFIAVEIS` (padrão `1`, o front do Cloud Run; use `2` se
 houver um Load Balancer na frente). `NODE_ENV`, `PORT` e `WEB_DIR` já vêm na imagem.
 

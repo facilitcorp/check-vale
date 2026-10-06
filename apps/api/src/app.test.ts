@@ -38,6 +38,48 @@ afterAll(async () => {
   await db.fechar();
 });
 
+describe("autocadastro", () => {
+  const email = `novo-${randomUUID().slice(0, 8)}@exemplo.com`;
+
+  it("o /saude avisa o app que o autocadastro está ligado", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/saude" });
+    expect(r.json().autocadastro).toBe(true);
+  });
+
+  it("cria conta de inspetor, já devolve a sessão e o login passa a funcionar", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/auth/cadastro", payload: { email: ` ${email.toUpperCase()} `, senha: "minha-senha" } });
+    expect(r.statusCode, r.body).toBe(201);
+    expect(r.json().usuario).toMatchObject({ email, papel: "inspetor", nome: email.split("@")[0] });
+    const eu = await app.inject({ method: "GET", url: "/api/auth/eu", headers: { authorization: `Bearer ${r.json().token}` } });
+    expect(eu.json().email).toBe(email);
+    const login = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email, senha: "minha-senha" } });
+    expect(login.statusCode).toBe(200);
+  });
+
+  it("não cria duas contas com o mesmo e-mail nem troca a senha de quem já existe", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/auth/cadastro", payload: { email: "admin@checkvale.dev", senha: "tentativa-1234" } });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().erro).toBe("email_em_uso");
+    const login = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "admin@checkvale.dev", senha: "tentativa-1234" } });
+    expect(login.statusCode).toBe(401);
+  });
+
+  it("ignora papel enviado pelo cliente e recusa senha curta", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/auth/cadastro", payload: { email: `x-${email}`, senha: "minha-senha", papel: "admin" } });
+    expect(r.json().usuario.papel).toBe("inspetor");
+    const curta = await app.inject({ method: "POST", url: "/api/auth/cadastro", payload: { email: `y-${email}`, senha: "1234567" } });
+    expect(curta.statusCode).toBe(400);
+  });
+
+  it("com AUTOCADASTRO=0 a rota não existe", async () => {
+    const desligado = await criarApp(lerConfig({ NODE_ENV: "test", AUTOCADASTRO: "0" }), db, armazenamentoMemoria());
+    const r = await desligado.inject({ method: "POST", url: "/api/auth/cadastro", payload: { email: `z-${email}`, senha: "minha-senha" } });
+    expect(r.statusCode).toBe(404);
+    expect((await desligado.inject({ method: "GET", url: "/api/saude" })).json().autocadastro).toBe(false);
+    await desligado.close();
+  });
+});
+
 describe("auth", () => {
   it("rejeita senha errada sem revelar se o e-mail existe", async () => {
     const r = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "inspetor@checkvale.dev", senha: "x" } });
