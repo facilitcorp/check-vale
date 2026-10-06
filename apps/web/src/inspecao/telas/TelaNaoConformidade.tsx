@@ -95,10 +95,11 @@ function FormularioNaoConformidade(props: { itemId: string; inspecao: Inspecao; 
 
       <label className="campo">
         <span className="campo__rotulo">Descrição da não conformidade *</span>
-        <input
+        <textarea
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           placeholder="Ex.: Lanterna traseira direita com defeito."
+          rows={3}
         />
       </label>
 
