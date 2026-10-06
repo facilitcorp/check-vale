@@ -32,10 +32,11 @@ export function LayoutAdmin() {
           <NavLink to="/" className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-sm hover:bg-white/10" title="App do inspetor"><Smartphone size={16} /><span className="hidden sm:inline">App</span></NavLink>
           <button aria-label="Sair" onClick={() => void sair()} className="flex size-11 items-center justify-center rounded-lg hover:bg-white/10"><LogOut size={18} /></button>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:hidden">
+        {/* No celular, as abas dividem a largura: nenhuma fica escondida atrás de rolagem. */}
+        <nav className="grid grid-cols-4 gap-1 px-2 pb-2 md:hidden">
           {MENU.map((m) => (
-            <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex shrink-0 items-center gap-1.5 min-h-11 rounded-lg px-3 text-sm ${isActive ? "bg-white/20" : ""}`}>
-              <m.icone size={16} /> {m.rotulo}
+            <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-xs ${isActive ? "bg-white/20" : ""}`}>
+              <m.icone size={18} /> <span className="max-w-full truncate">{m.rotulo}</span>
             </NavLink>
           ))}
         </nav>

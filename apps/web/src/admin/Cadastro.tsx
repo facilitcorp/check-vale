@@ -1,5 +1,5 @@
 import { Pencil, Plus, X } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useState, type FormEvent, type ReactNode } from "react";
 import { Aviso, Botao, Campo, Rotulo, Selecao } from "../componentes/ui";
 import { enviar, textoErro, useRecurso } from "./api";
 
@@ -93,6 +93,12 @@ export function Cadastro<T extends { id: string }>({
     }
   }
 
+  const botaoEditar = (v: T) => (
+    <button aria-label="Editar" className="inline-flex size-11 shrink-0 items-center justify-center rounded text-marca hover:bg-marca-clara" onClick={() => (setFalha(null), setEdicao({ valor: { ...v }, id: v.id }))}>
+      <Pencil size={16} />
+    </button>
+  );
+
   return (
     <section className="rounded-xl border border-borda bg-superficie p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -112,7 +118,28 @@ export function Cadastro<T extends { id: string }>({
 
       {erro && <div className="mt-3"><Aviso tom="erro">{erro}</Aviso></div>}
 
-      <div className="mt-3 overflow-x-auto">
+      {/* Celular: um cartão por cadastro, com todas as colunas visíveis sem rolar para o lado. */}
+      <ul className="mt-3 divide-y divide-borda md:hidden">
+        {lista.map((v) => (
+          <li key={v.id} className={`flex items-start gap-2 py-3 ${filtroAtivo && !filtroAtivo(v) ? "opacity-50" : ""}`}>
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-semibold">{colunas[0]?.render(v)}</div>
+              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                {colunas.slice(1).map((c) => (
+                  <Fragment key={c.titulo}>
+                    <dt className="text-texto-suave">{c.titulo}</dt>
+                    <dd className="min-w-0 break-words">{c.render(v)}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </div>
+            {botaoEditar(v)}
+          </li>
+        ))}
+        {dados && lista.length === 0 && <li className="py-6 text-center text-sm text-texto-suave">Nenhum cadastro.</li>}
+      </ul>
+
+      <div className="mt-3 hidden overflow-x-auto md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-borda text-texto-suave">
             <tr>
@@ -124,11 +151,7 @@ export function Cadastro<T extends { id: string }>({
             {lista.map((v) => (
               <tr key={v.id} className={filtroAtivo && !filtroAtivo(v) ? "opacity-50" : ""}>
                 {colunas.map((c) => <td key={c.titulo} className="px-2 py-2 align-top">{c.render(v)}</td>)}
-                <td className="px-2 py-1 text-right">
-                  <button aria-label="Editar" className="inline-flex size-11 items-center justify-center rounded text-marca hover:bg-marca-clara" onClick={() => (setFalha(null), setEdicao({ valor: { ...v }, id: v.id }))}>
-                    <Pencil size={16} />
-                  </button>
-                </td>
+                <td className="px-2 py-1 text-right">{botaoEditar(v)}</td>
               </tr>
             ))}
             {dados && lista.length === 0 && (
