@@ -50,7 +50,9 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
   const app = Fastify({
     logger: cfg.producao ? { redact: ["req.headers.authorization"] } : false,
     bodyLimit: 16 * 1024 * 1024,
-    trustProxy: true,
+    // Só os N saltos de proxy conhecidos: com `true` o cliente forjaria o IP (burla o limite do login e falseia a auditoria).
+    // (Número aqui o Fastify trata como "não confiar em nada"; por isso a função por posição do salto.)
+    trustProxy: (_endereco: string, salto: number) => salto < cfg.proxiesConfiaveis,
   });
 
   app.decorate("db", db);
@@ -94,9 +96,11 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
     return rep.status(500).send({ erro: "erro_interno", mensagem: "Erro inesperado. Tente novamente." });
   });
 
-  app.get("/api/saude", async () => {
+  // Saúde e prontidão: só responde depois das migrações (o listen vem depois delas) e com o banco respondendo.
+  app.get("/api/saude", async (_req, rep) => {
+    rep.header("cache-control", "no-store");
     await db.query("SELECT 1");
-    return { ok: true };
+    return { ok: true, versao: cfg.versao, revisao: cfg.revisao };
   });
 
   await app.register(rotasAuth, { prefix: "/api/auth" });

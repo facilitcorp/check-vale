@@ -11,6 +11,8 @@ export async function abrirDb(opts: { databaseUrl: string | null; dataDir: strin
   if (opts.databaseUrl) {
     const { default: pg } = await import("pg");
     const pool = new pg.Pool({ connectionString: opts.databaseUrl, max: 10 });
+    // Conexão ociosa que cai (reinício do Cloud SQL, rede) emite "error" no pool: sem ouvinte, derruba o processo.
+    pool.on("error", (e) => console.error(JSON.stringify({ severity: "WARNING", message: `Postgres: conexão ociosa caiu (${e.message})` })));
     return {
       query: async (sql, params) => pool.query(sql, params as unknown[]) as never,
       transacao: async (fn) => {
@@ -45,15 +47,21 @@ export async function abrirDb(opts: { databaseUrl: string | null; dataDir: strin
   return { ...embrulhar(lite), fechar: () => lite.close() };
 }
 
+/** Chave do advisory lock da subida: várias instâncias subindo juntas migram e semeiam uma de cada vez. */
+export const TRAVA_SUBIDA = 4_247_001;
+
 export async function migrar(db: Db): Promise<void> {
-  await db.query(`CREATE TABLE IF NOT EXISTS _migracoes (nome text PRIMARY KEY, aplicada_em timestamptz NOT NULL DEFAULT now())`);
-  const { rows } = await db.query<{ nome: string }>(`SELECT nome FROM _migracoes`);
-  const feitas = new Set(rows.map((r) => r.nome));
-  for (const [nome, sql] of MIGRACOES) {
-    if (feitas.has(nome)) continue;
-    await db.transacao(async (tx) => {
+  // Tudo numa transação só, com trava: a segunda instância espera e encontra as migrações feitas.
+  await db.transacao(async (tx) => {
+    await tx.query(`SELECT pg_advisory_xact_lock(${TRAVA_SUBIDA})`);
+    await tx.query(`CREATE TABLE IF NOT EXISTS _migracoes (nome text PRIMARY KEY, aplicada_em timestamptz NOT NULL DEFAULT now())`);
+    const { rows } = await tx.query<{ nome: string }>(`SELECT nome FROM _migracoes`);
+    const feitas = new Set(rows.map((r) => r.nome));
+    for (const [nome, sql] of MIGRACOES) {
+      if (feitas.has(nome)) continue;
       for (const stmt of sql.split(/;\s*$/m).map((s) => s.trim()).filter(Boolean)) await tx.query(stmt);
       await tx.query(`INSERT INTO _migracoes (nome) VALUES ($1)`, [nome]);
-    });
-  }
+      console.log(`Migração aplicada: ${nome}`);
+    }
+  });
 }
