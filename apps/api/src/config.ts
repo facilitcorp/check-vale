@@ -3,6 +3,11 @@ import { randomBytes } from "node:crypto";
 /** Configuração só por variável de ambiente. Nada de segredo no código. */
 export interface Config {
   producao: boolean;
+  /** Versão do pacote (injetada no build) e revisão do Cloud Run, para saber o que está no ar. */
+  versao: string;
+  revisao: string | null;
+  /** Quantos proxies à frente da API acrescentam X-Forwarded-For. Cloud Run = 1. */
+  proxiesConfiaveis: number;
   porta: number;
   /** postgres://... em produção; vazio = PGlite (em memória ou em DATA_DIR). */
   databaseUrl: string | null;
@@ -22,6 +27,9 @@ export interface Config {
   senhaDemo: string;
 }
 
+declare const __VERSAO__: string | undefined;
+const VERSAO = typeof __VERSAO__ === "string" ? __VERSAO__ : "dev";
+
 /** Senha que está no README: só vale fora de produção. */
 const SENHA_DEMO_PADRAO = "checkvale";
 
@@ -40,6 +48,9 @@ export function lerConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   return {
     producao,
+    versao: VERSAO,
+    revisao: env.K_REVISION || null,
+    proxiesConfiaveis: Number(env.PROXIES_CONFIAVEIS ?? 1),
     porta: Number(env.PORT ?? 3000),
     databaseUrl: env.DATABASE_URL || null,
     dataDir: env.DATA_DIR || null,

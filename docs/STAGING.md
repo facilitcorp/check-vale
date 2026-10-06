@@ -23,6 +23,7 @@ Escuta na porta `8080`. Saúde: `GET /api/saude` (faz `SELECT 1` no banco).
 | `UPLOADS_BUCKET` | nome do bucket | fotos no Cloud Storage. A conta de serviço precisa de `roles/storage.objectAdmin` **só nesse bucket**. O disco do Cloud Run é efêmero: sem bucket, as fotos somem a cada reinício |
 | `CORS_ORIGENS` | URL do serviço | só importa se outra origem chamar a API; o app usa a mesma origem |
 | `WEB_DIR` | `/app/web` (já na imagem) | desligar = só API |
+| `PROXIES_CONFIAVEIS` | `1` (padrão) | saltos de proxy que acrescentam `X-Forwarded-For`; o IP do cliente (limite do login e auditoria) vem daí |
 
 Migrações rodam sozinhas na subida (tabela `_migracoes`).
 
@@ -30,6 +31,10 @@ Migrações rodam sozinhas na subida (tabela `_migracoes`).
 
 ## Conferência depois de publicar
 
-1. `GET /api/saude` → `{"ok":true}`
+1. `GET /api/saude` → `{"ok":true,"versao":"…","revisao":"…"}`
 2. Abrir a URL, entrar como `inspetor@checkvale.dev` e como `admin@checkvale.dev`
-3. O roteiro de tela roda contra a URL: `API=<url>/api WEB=<url> node qa/aceite-admin.mjs`
+3. O roteiro de tela roda contra a URL: `WEB=<url> INSPETOR_EMAIL=… INSPETOR_SENHA=… ADMIN_EMAIL=… ADMIN_SENHA=… node qa/tela/staging.mjs`
+
+> Não rode `qa/aceite-*.mjs` contra URL pública: eles criam um usuário com senha fixa escrita no repositório.
+
+Deploy, rollback, migração e backup: `docs/DEPLOY.md`.

@@ -286,3 +286,25 @@ describe("núcleo configurável (admin)", () => {
     expect((await req("PATCH", `/api/admin/usuarios/${eu.id}`, { ativo: false })).statusCode).toBe(400);
   });
 });
+
+describe("subida", () => {
+  it("migrar e semear de novo não fazem nada (idempotentes)", async () => {
+    const antes = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM usuarios`);
+    await migrar(db);
+    expect(await semearDemo(db, "outra-senha")).toBe(false);
+    const depois = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM usuarios`);
+    expect(depois.rows[0]!.n).toBe(antes.rows[0]!.n);
+  });
+
+  it("saúde informa a versão e não vai para cache", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/saude" });
+    expect(r.json()).toMatchObject({ ok: true, versao: expect.any(String) });
+    expect(r.headers["cache-control"]).toBe("no-store");
+  });
+
+  it("IP do cliente vem do último salto (o do proxy), não do X-Forwarded-For forjado", async () => {
+    await app.inject({ method: "POST", url: "/api/auth/login", headers: { "x-forwarded-for": "6.6.6.6, 203.0.113.9" }, payload: { email: "ninguem@checkvale.dev", senha: "x" } });
+    const { rows } = await db.query<{ ip: string }>(`SELECT ip FROM auditoria WHERE acao = 'login_falhou' ORDER BY id DESC LIMIT 1`);
+    expect(rows[0]!.ip).toBe("203.0.113.9");
+  });
+});

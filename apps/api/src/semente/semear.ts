@@ -1,13 +1,15 @@
 import bcrypt from "bcryptjs";
-import type { Db } from "../db";
+import { TRAVA_SUBIDA, type Db } from "../db";
 import { AREAS, ATIVIDADES, ATRIBUTOS_DEMO, TIPOS_VEICULO, UNIDADES, VEICULOS_DEMO, idDe, modeloPadrao } from "./dados";
 
 /** Popula dados de DEMONSTRAÇÃO (demo = true) se o banco estiver vazio. Idempotente. */
 export async function semearDemo(db: Db, senhaDemo: string): Promise<boolean> {
-  const { rows } = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM unidades`);
-  if ((rows[0]?.n ?? 0) > 0) return false;
+  return db.transacao(async (tx) => {
+    // Mesma trava das migrações: duas instâncias subindo juntas não semeiam duas vezes.
+    await tx.query(`SELECT pg_advisory_xact_lock(${TRAVA_SUBIDA})`);
+    const { rows } = await tx.query<{ n: number }>(`SELECT count(*)::int AS n FROM unidades`);
+    if ((rows[0]?.n ?? 0) > 0) return false;
 
-  await db.transacao(async (tx) => {
     for (const u of UNIDADES) await tx.query(`INSERT INTO unidades (id, nome, uf, demo) VALUES ($1,$2,$3,true)`, [u.id, u.nome, u.uf]);
     for (const a of AREAS) await tx.query(`INSERT INTO areas (id, nome, demo) VALUES ($1,$2 || ' (DEMO)',true)`, [a.id, a.nome]);
     for (const a of ATIVIDADES) await tx.query(`INSERT INTO atividades (id, nome, demo) VALUES ($1,$2 || ' (DEMO)',true)`, [a.id, a.nome]);
@@ -42,6 +44,6 @@ export async function semearDemo(db: Db, senhaDemo: string): Promise<boolean> {
         [idDe(`veiculo:${v.placa ?? v.codigo}`), v.placa, v.codigo ?? null, tipo.id, v.descricao, v.fabricante, v.modelo, UNIDADES[0]!.id, JSON.stringify(v.atributos), agora],
       );
     }
+    return true;
   });
-  return true;
 }
