@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import type { Inspecao, ModeloChecklist, StatusResposta } from '@checkvale/shared';
+import { evidenciaDoItem, faltaEvidencia, type Inspecao, type ModeloChecklist, type StatusResposta } from '@checkvale/shared';
 import { useChecklistDaInspecao } from '../../dados/ganchos';
 import { repositorioInspecao } from '../../dados/repositorio';
 import { Evidencias } from '../componentes/Evidencias';
@@ -58,6 +58,11 @@ function FormularioItem(props: { itemId: string; inspecao: Inspecao; modelo: Mod
   const local = localizar(modelo, itemId);
   if (!local) return <Navigate to={rotas.categorias(v.id)} replace />;
   const { categoria, indice, item } = local;
+  // NC já segue para a tela que exige foto; "não se aplica" nunca pede evidência.
+  const evidencia = evidenciaDoItem(item);
+  const pede = status === 'conforme' || status === undefined;
+  const pedeObservacao = pede && evidencia === 'observacao';
+  const pedeFoto = pede && evidencia === 'foto';
   const opcoes = OPCOES.filter((o) => o.status !== 'nao_aplica' || item.permiteNaoAplica);
 
   const proximo = categoria.itens[indice + 1];
@@ -76,15 +81,15 @@ function FormularioItem(props: { itemId: string; inspecao: Inspecao; modelo: Mod
       navegar(rotas.naoConformidade(v.id, itemId), { state: rascunho });
       return;
     }
+    const resposta = { itemId, status, observacao: observacao.trim() || null, naoConformidade: null, evidenciaIds: fotos };
+    const falta = faltaEvidencia(item, resposta);
+    if (falta) {
+      setErro(falta);
+      return;
+    }
     setSalvando(true);
     try {
-      await repositorioInspecao.salvarResposta(v.id, {
-        itemId,
-        status,
-        observacao: observacao.trim() || null,
-        naoConformidade: null,
-        evidenciaIds: fotos,
-      });
+      await repositorioInspecao.salvarResposta(v.id, resposta);
       avisarSalvo();
       navegar(destinoDepois);
     } catch (e) {
@@ -140,7 +145,7 @@ function FormularioItem(props: { itemId: string; inspecao: Inspecao; modelo: Mod
       </div>
 
       <label className="campo">
-        <span className="campo__rotulo">Observações (opcional)</span>
+        <span className="campo__rotulo">{pedeObservacao ? 'Observação (obrigatória neste item)' : 'Observações (opcional)'}</span>
         <textarea
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
@@ -149,7 +154,7 @@ function FormularioItem(props: { itemId: string; inspecao: Inspecao; modelo: Mod
         />
       </label>
 
-      <span className="campo__rotulo">Adicionar evidência</span>
+      <span className="campo__rotulo">{pedeFoto ? 'Foto (obrigatória neste item)' : 'Adicionar evidência'}</span>
       <Evidencias inspecaoId={v.id} itemId={itemId} ids={fotos} onChange={setFotos} />
     </Moldura>
   );

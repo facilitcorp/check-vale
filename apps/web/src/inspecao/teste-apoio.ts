@@ -3,7 +3,7 @@
  * primeiro sync (catálogo, modelo, veículo) e um servidor falso no fetch.
  */
 import { vi } from 'vitest';
-import { SEM_RESTRICAO, type Catalogo, type ModeloChecklist, type OperacaoSync, type SyncEntrada, type Veiculo } from '@checkvale/shared';
+import { SEM_RESTRICAO, type Catalogo, type EvidenciaItem, type ModeloChecklist, type OperacaoSync, type SyncEntrada, type Veiculo } from '@checkvale/shared';
 import { banco, chaveModelo } from '../dados/banco';
 import { repositorioInspecao } from '../dados/repositorio';
 
@@ -23,6 +23,9 @@ const CATEGORIAS: [nome: string, icone: string, itens: string[], soPesado?: bool
   // regra real de aplicabilidade: só veículo pesado tem telemetria
   ['Telemetria e tecnologia', 'satellite', ['Rastreador ativo', 'Câmera de fadiga'], true],
 ];
+
+/** Itens com evidência configurada; os demais ficam sem o campo (regra de sempre). */
+const EVIDENCIAS: Record<string, EvidenciaItem> = { 'CRLV em dia': 'foto', 'Seguro obrigatório': 'observacao' };
 
 export const MODELO: ModeloChecklist = {
   id: uid(),
@@ -45,6 +48,7 @@ export const MODELO: ModeloChecklist = {
       permiteNaoAplica: true,
       criticidadeSugerida: null,
       aplicavel: SEM_RESTRICAO,
+      ...(EVIDENCIAS[titulo] ? { evidencia: EVIDENCIAS[titulo] } : {}),
     })),
   })),
 };

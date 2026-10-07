@@ -15,6 +15,10 @@ import {
   type TipoVeiculo,
   type Veiculo,
   type VersaoModelo,
+  EVIDENCIA_PADRAO,
+  EvidenciaItem,
+  evidenciaDoItem,
+  ROTULO_EVIDENCIA,
 } from "@checkvale/shared";
 import { Aviso, Botao, Campo, Rotulo, Selecao } from "../componentes/ui";
 import { useSessao } from "../dados/sessao";
@@ -165,7 +169,7 @@ export function EditorVersao() {
     setAberto(c.id);
   };
   const novoItem = (cat: CategoriaChecklist) => {
-    const i: ItemChecklist = { id: crypto.randomUUID(), codigo: `${cat.codigo}.${cat.itens.length + 1}`, titulo: "Novo item", descricao: "", ordem: cat.itens.length + 1, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO };
+    const i: ItemChecklist = { id: crypto.randomUUID(), codigo: `${cat.codigo}.${cat.itens.length + 1}`, titulo: "Novo item", descricao: "", ordem: cat.itens.length + 1, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO, evidencia: EVIDENCIA_PADRAO };
     mudarCat(cat.id, { itens: [...cat.itens, i] });
     setAberto(i.id);
   };
@@ -250,7 +254,7 @@ export function EditorVersao() {
                     <p>{it.titulo}</p>
                     <p className="text-xs text-texto-suave">
                       {it.criticidadeSugerida ? `NC sugerida: ${CRITICIDADES.find((c) => c.valor === it.criticidadeSugerida)?.rotulo}` : "Sem criticidade sugerida"}
-                      {!it.permiteNaoAplica && " · N/A não permitido"} · {descreverRegra(it.aplicavel, refs)}
+                      {!it.permiteNaoAplica && " · N/A não permitido"} · Evidência: {ROTULO_EVIDENCIA[evidenciaDoItem(it)]} · {descreverRegra(it.aplicavel, refs)}
                     </p>
                   </div>
                   {!ro && (
@@ -275,6 +279,13 @@ export function EditorVersao() {
                           <option value="">Nenhuma</option>
                           {CRITICIDADES.map((c) => <option key={c.valor} value={c.valor}>{c.rotulo}</option>)}
                         </Selecao>
+                      </div>
+                      <div>
+                        <Rotulo>Evidência</Rotulo>
+                        <Selecao value={evidenciaDoItem(it)} disabled={ro} onChange={(e) => mudarItem(cat.id, it.id, { evidencia: EvidenciaItem.parse(e.target.value) })}>
+                          {EvidenciaItem.options.map((ev) => <option key={ev} value={ev}>{ROTULO_EVIDENCIA[ev]}</option>)}
+                        </Selecao>
+                        <p className="mt-1 text-xs text-texto-suave">Não conformidade sempre exige foto, qualquer que seja a opção.</p>
                       </div>
                       <label className="flex items-center gap-2 self-end pb-3 text-sm">
                         <input type="checkbox" disabled={ro} checked={it.permiteNaoAplica} onChange={(e) => mudarItem(cat.id, it.id, { permiteNaoAplica: e.target.checked })} /> Permite "Não se aplica"

@@ -73,6 +73,32 @@ describe('fluxo da inspeção (telas 5–12) na base real', () => {
     expect(await banco.evidencias.get(r.evidenciaIds[0]!)).toBeTruthy();
   });
 
+  it('evidência do item: "Fotografia" pede foto e "Observação" pede texto mesmo conforme', async () => {
+    const v = await novaInspecao();
+    abrir(rotasInspecao.item(v.id, item('CRLV em dia').id));
+    await screen.findByRole('heading', { name: 'CRLV em dia' }, ESPERA);
+    screen.getByText('Foto (obrigatória neste item)');
+    fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    expect(screen.getByRole('alert').textContent).toMatch('foto');
+    fireEvent.change(screen.getByTestId('entrada-foto'), { target: { files: [new File(['x'], 'f.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remover foto' })).toHaveLength(1), ESPERA);
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+
+    await screen.findByRole('heading', { name: 'Seguro obrigatório' }, ESPERA);
+    screen.getByText('Observação (obrigatória neste item)');
+    fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    expect(screen.getByRole('alert').textContent).toMatch('observação');
+    fireEvent.change(screen.getByPlaceholderText('Digite aqui...'), { target: { value: 'Apólice vigente até 12/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    await screen.findByRole('heading', { name: 'Autorização de tráfego interno' }, ESPERA);
+
+    const salvo = await repositorioInspecao.obter(v.id);
+    expect(salvo!.respostas.find((x) => x.itemId === item('CRLV em dia').id)!.evidenciaIds).toHaveLength(1);
+    expect(salvo!.respostas.find((x) => x.itemId === item('Seguro obrigatório').id)!.observacao).toBe('Apólice vigente até 12/2026');
+  });
+
   it('remover foto desvincula da resposta ao salvar', async () => {
     const v = await novaInspecao();
     const alvo = item('Lanternas traseiras');
