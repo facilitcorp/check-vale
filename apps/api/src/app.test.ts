@@ -319,6 +319,40 @@ describe("núcleo configurável (admin)", () => {
     expect((await app.inject({ method: "GET", url: `/api/catalogo/modelos/${criado.id}/versoes/1` })).statusCode).toBe(401);
   });
 
+  it("evidência do item: editor grava, catálogo entrega e a conclusão cobra foto/observação", async () => {
+    const criado = (await req("POST", "/api/admin/modelos", { nome: "Checklist Evidência" })).json() as VersaoModelo;
+    const item = (codigo: string, evidencia?: string) => ({ id: randomUUID(), codigo, titulo: codigo, descricao: "", ordem: 1, permiteNaoAplica: true, criticidadeSugerida: null, aplicavel: SEM_RESTRICAO, ...(evidencia ? { evidencia } : {}) });
+    const tipoVan = catalogo.tiposVeiculo.find((t) => t.codigo === "van")!.id;
+    const [foto, obs, antigo] = [item("extintor", "foto"), item("hodometro", "observacao"), item("buzina")];
+    const corpo = {
+      nome: "Checklist Evidência",
+      aplicavel: { ...SEM_RESTRICAO, tipoVeiculoIds: [tipoVan] },
+      categorias: [{ id: randomUUID(), codigo: "geral", nome: "Geral", icone: "", ordem: 1, aplicavel: SEM_RESTRICAO, itens: [foto, obs, antigo] }],
+    };
+    expect((await req("PUT", `/api/admin/modelos/${criado.id}/versoes/1`, corpo)).statusCode).toBe(200);
+    expect((await req("POST", `/api/admin/modelos/${criado.id}/versoes/1/publicar`)).json().status).toBe("publicada");
+    const cat = (await app.inject({ method: "GET", url: "/api/catalogo", headers: auth() })).json() as Catalogo;
+    const itens = cat.modelos.find((m) => m.id === criado.id)!.categorias[0]!.itens;
+    expect(itens.map((i) => i.evidencia)).toEqual(["foto", "observacao", undefined]);
+
+    const van = (await app.inject({ method: "GET", url: "/api/veiculos", headers: auth() })).json().veiculos.find((v: { placa: string }) => v.placa === "JHK8D91");
+    const conforme = (itemId: string, extra: Partial<Resposta> = {}): Resposta => ({ itemId, status: "conforme", observacao: null, naoConformidade: null, evidenciaIds: [], respondidaEm: agora(), ...extra });
+    const inspecao = (respostas: Resposta[]): Inspecao => ({
+      id: randomUUID(), modeloId: criado.id, modeloVersao: 1, unidadeId: catalogo.unidades[0]!.id, areaId: catalogo.areas[0]!.id, atividadeId: catalogo.atividades[0]!.id,
+      veiculoId: van.id, inspetorId: usuarioId, tipoVeiculoId: van.tipoVeiculoId, atributosVeiculo: van.atributos, status: "concluida", iniciadaEm: agora(), concluidaEm: agora(), respostas,
+    });
+    const s = await sync([
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: inspecao([conforme(foto.id), conforme(obs.id, { observacao: "12.345 km" }), conforme(antigo.id)]) },
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: inspecao([conforme(foto.id, { evidenciaIds: [randomUUID()] }), conforme(obs.id), conforme(antigo.id)]) },
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: inspecao([conforme(foto.id, { evidenciaIds: [randomUUID()] }), conforme(obs.id, { observacao: "12.345 km" }), conforme(antigo.id)]) },
+      // Em andamento não cobra: o inspetor ainda está preenchendo.
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: { ...inspecao([conforme(foto.id)]), status: "em_andamento", concluidaEm: null } },
+    ]);
+    expect(s.resultados.map((r) => r.status)).toEqual(["rejeitada", "rejeitada", "aplicada", "aplicada"]);
+    expect(s.resultados[0]!.erro).toMatch(/extintor.*foto/);
+    expect(s.resultados[1]!.erro).toMatch(/hodometro.*observação/);
+  });
+
   it("usuários: admin cria inspetor que consegue entrar; não pode se auto-desativar", async () => {
     const r = await req("POST", "/api/admin/usuarios", { nome: "Motorista Novo", email: "novo@empresa.com", papel: "inspetor", ativo: true, senha: "senha-forte-1" });
     expect(r.statusCode, r.body).toBe(201);
