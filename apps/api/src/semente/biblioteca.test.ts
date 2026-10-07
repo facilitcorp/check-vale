@@ -23,6 +23,10 @@ describe("conteúdo da biblioteca", () => {
     if (m.origem === "base_checkvale") expect(textos.filter((t) => PROIBIDO.test(t))).toEqual([]);
     // Evidência sempre explícita: a empresa vê no editor o que o modelo sugere.
     expect(categorias.flatMap((c) => c.itens).filter((i) => !i.evidencia)).toEqual([]);
+    // Sem exagero: foto mesmo conforme só onde agrega (cada uma é um passo a mais no campo) e o padrão segue maioria.
+    const itens = categorias.flatMap((c) => c.itens);
+    expect(itens.filter((i) => i.evidencia === "foto").length).toBeLessThanOrEqual(3);
+    expect(itens.filter((i) => i.evidencia === "foto_se_nc").length).toBeGreaterThan(itens.length / 2);
   });
 
   it("a trava pega afirmações equivalentes e deixa passar texto comum", () => {

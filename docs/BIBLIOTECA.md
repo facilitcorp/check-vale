@@ -45,3 +45,9 @@ O inspetor **nunca** escolhe o checklist: o app pega o mais específico (`escolh
 ## Conteúdo que vem com o produto
 
 Os Modelos Base CheckVale ficam em `apps/api/src/semente/biblioteca-conteudo.ts` (blocos genéricos reaproveitados + itens do veículo). Na subida, `carregarBiblioteca` publica (v1) todo modelo cujo id ainda não existe, em qualquer ambiente; nunca altera modelo existente, e depois da primeira carga quem muda é a curadoria. Setor é encontrado pelo nome da semente `003`. Um teste recusa texto que se apresente como exigência ("oficial", "homologado", "exigência", "requisito", norma/NR, legislação, certificado, contrato, Vale, mineradora). Criticidade é sugestão do CheckVale, conservadora na dúvida, e a empresa ajusta ao adotar.
+
+Evidência sugerida (`ItemConteudo[4]`, padrão `foto_se_nc`), também sugestão que a empresa ajusta no editor; NC sempre exige foto, qualquer que seja a opção:
+- `foto_se_nc`: padrão da maioria dos itens;
+- `semEvidencia()`: o que se verifica acionando ou olhando na hora (buzina, luzes, retrovisores, comandos, condutor/operador);
+- `comObservacao()`: informação em texto (hodômetro/horímetro, identificação/prefixo);
+- `comFoto()`: só onde a imagem agrega histórico (extintor, carroceria, cabo de aço do munck, partes isolantes do cesto). O teste limita a 3 itens com foto por modelo e exige `foto_se_nc` como maioria.
