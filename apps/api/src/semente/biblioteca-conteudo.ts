@@ -1,4 +1,9 @@
 import type { CategoriaConteudo, ItemConteudo, ModeloConteudo } from "./biblioteca";
+import {
+  acoplamento, amarracao, betoneira, cabineMaquina, cacamba, documentacaoImplemento, documentacaoMaquina, estruturaImplemento, esteiras,
+  faixasRefletivas, freioImplemento, freiosMaquina, guindautoObra, hidraulicoMaquina, iluminacaoImplemento, inicioMaquina, motorMaquina,
+  rodasMaquina, segurancaMaquina, sinalizacaoMaquina, soloApoio, tacografo,
+} from "./biblioteca-blocos";
 
 /**
  * Modelos Base CheckVale: referência inicial de inspeção, personalizável pela
@@ -10,6 +15,8 @@ import type { CategoriaConteudo, ItemConteudo, ModeloConteudo } from "./bibliote
 
 const MINERACAO = "Mineração";
 const ENERGIA = "Energia elétrica";
+const TRANSPORTE = "Transporte rodoviário e logística";
+const CONSTRUCAO = "Construção civil e infraestrutura";
 
 /** Bloco genérico acrescido de itens do modelo (mesmo código: os novos vêm no fim). */
 const com = ([codigo, nome, icone, itens]: CategoriaConteudo, ...extras: ItemConteudo[]): CategoriaConteudo => [codigo, nome, icone, [...itens, ...extras]];
@@ -338,6 +345,188 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
       ]],
       carga,
       inicioOperacao(),
+    ],
+  },
+
+  // --- Transporte rodoviário e logística -------------------------------------
+  {
+    chave: "transporte:caminhao",
+    setores: [TRANSPORTE],
+    nome: "Caminhão",
+    resumo: "Pré-uso de caminhão de carga em operação rodoviária.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, com(cabine, acessoCabine, tacografo), externos, com(iluminacao, faixasRefletivas), motor, com(freios, ...freioAr), pneus, seguranca,
+      com(carga, ...amarracao),
+      inicioOperacao(),
+    ],
+  },
+  {
+    chave: "transporte:cavalo-mecanico",
+    setores: [TRANSPORTE],
+    nome: "Cavalo mecânico",
+    resumo: "Pré-uso do cavalo mecânico, incluindo engate e acoplamento com a carreta.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, com(cabine, acessoCabine, tacografo), externos, com(iluminacao, faixasRefletivas), motor, com(freios, ...freioAr), pneus, seguranca,
+      acoplamento,
+      inicioOperacao(),
+    ],
+  },
+  {
+    chave: "transporte:carreta",
+    setores: [TRANSPORTE],
+    nome: "Carreta",
+    resumo: "Inspeção do implemento rodoviário (semirreboque): engate, estrutura, freio, pneus, sinalização e carga.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacaoImplemento, acoplamento, estruturaImplemento, com(freioImplemento, ...freioAr), iluminacaoImplemento, pneus,
+      com(carga, ...amarracao),
+    ],
+  },
+  {
+    chave: "transporte:van-utilitario",
+    setores: [TRANSPORTE],
+    nome: "Van / utilitário",
+    resumo: "Pré-uso de van e utilitário de entrega ou apoio.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, cabine, externos, iluminacao, motor, freios, pneus, seguranca,
+      com(carga,
+        ["Separação entre cabine e carga", "Grade ou divisória íntegra, quando houver.", "media"],
+        ["Portas traseira e lateral", "Abrem, fecham e travam corretamente.", "alta", false],
+      ),
+      inicioOperacao(),
+    ],
+  },
+  {
+    chave: "transporte:pre-viagem",
+    setores: [TRANSPORTE],
+    nome: "Checklist pré-viagem",
+    resumo: "Verificação antes de sair para a viagem: veículo, carga, documentos e preparo do trajeto.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao,
+      ["VIA", "Preparação da viagem", "document", [
+        ["Documentos da carga", "Notas e documentos de transporte a bordo.", "alta"],
+        ["Rota e paradas", "Trajeto, pontos de parada e descanso definidos.", "media"],
+        ["Combustível", "Suficiente para o trecho até o próximo abastecimento.", "media", false],
+        ["Contatos de emergência", "Telefone da base e de socorro disponíveis ao condutor.", "media", false],
+        ["Comunicação", "Celular ou rádio carregado e funcionando.", "media", false],
+      ]],
+      cabine, externos, iluminacao, motor, com(freios, ...freioAr), pneus, seguranca,
+      com(carga, ...amarracao),
+      inicioOperacao(["Descanso do condutor", "Condutor descansado e com pausas previstas no trajeto.", "alta", false]),
+    ],
+  },
+
+  // --- Construção civil e infraestrutura -------------------------------------
+  {
+    chave: "construcao:caminhao",
+    setores: [CONSTRUCAO],
+    nome: "Caminhão",
+    resumo: "Pré-uso de caminhão de obra (caçamba ou carroceria) em canteiro e via pública.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, com(cabine, acessoCabine), externos, com(iluminacao, faixasRefletivas), motor, com(freios, ...freioAr), pneus, seguranca,
+      cacamba,
+      carga,
+      inicioOperacao(soloApoio),
+    ],
+  },
+  {
+    chave: "construcao:munck",
+    setores: [CONSTRUCAO],
+    nome: "Caminhão Munck",
+    resumo: "Pré-uso de caminhão com guindauto (Munck) em canteiro de obra.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, com(cabine, acessoCabine), externos, iluminacao, motor, com(freios, ...freioAr), pneus, seguranca,
+      ["GUI", "Guindauto", "hard-hat", [
+        ...estabilizadores,
+        ...hidraulico,
+        ...comandos,
+        ["Lança e extensões", "Sem trincas, amassados ou soldas abertas.", "critica", false],
+        ["Gancho com trava", "Trava presente e fechando.", "critica", false],
+        ["Cabo de aço / corrente", "Sem fios rompidos, nós ou amassados.", "critica"],
+        ["Tabela de carga", "Fixada e legível junto aos comandos.", "alta", false],
+        ["Acessórios de içamento", "Cintas, manilhas e estropos sem danos.", "alta"],
+        ...guindautoObra,
+      ]],
+      carga,
+      inicioOperacao(soloApoio),
+    ],
+  },
+  {
+    chave: "construcao:betoneira",
+    setores: [CONSTRUCAO],
+    nome: "Betoneira",
+    resumo: "Pré-uso do caminhão betoneira: veículo, balão, sistema hidráulico e acesso à plataforma.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacao, com(cabine, acessoCabine), externos, com(iluminacao, faixasRefletivas), motor, com(freios, ...freioAr), pneus, seguranca,
+      betoneira,
+      inicioOperacao(soloApoio),
+    ],
+  },
+  {
+    chave: "construcao:escavadeira",
+    setores: [CONSTRUCAO],
+    nome: "Escavadeira",
+    resumo: "Pré-operação de escavadeira sobre esteiras: motor, hidráulico, material rodante, cabine e área de trabalho.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacaoMaquina, com(cabineMaquina, acessoCabine, ...comandos), motorMaquina, com(hidraulicoMaquina, ...hidraulico), esteiras,
+      ["IMP", "Lança, braço e caçamba", "hard-hat", [
+        ["Lança e braço", "Sem trincas ou soldas soltas.", "alta", false],
+        ["Caçamba e dentes", "Dentes presentes e fixados; caçamba sem trincas.", "media", false],
+        ["Giro da superestrutura", "Gira sem ruído anormal; freio de giro segura a máquina.", "alta", false],
+      ]],
+      com(sinalizacaoMaquina, ...comunicacao), segurancaMaquina, inicioMaquina,
+    ],
+  },
+  {
+    chave: "construcao:retroescavadeira",
+    setores: [CONSTRUCAO],
+    nome: "Retroescavadeira",
+    resumo: "Pré-operação de retroescavadeira: pá, retro, estabilizadores, pneus, freios e cabine.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacaoMaquina, com(cabineMaquina, acessoCabine, ...comandos), motorMaquina, com(hidraulicoMaquina, ...hidraulico), rodasMaquina, freiosMaquina,
+      ["IMP", "Pá, retro e estabilizadores", "hard-hat", [
+        ["Pá dianteira", "Lâmina e dentes fixados; sem trincas.", "media", false],
+        ["Braço e caçamba da retro", "Sem trincas; dentes presentes e fixados.", "media", false],
+        ...estabilizadores,
+        ["Trava de transporte da retro", "Trava a lança para deslocamento.", "alta"],
+      ]],
+      com(sinalizacaoMaquina, ...comunicacao), segurancaMaquina, inicioMaquina,
+    ],
+  },
+  {
+    chave: "construcao:pa-carregadeira",
+    setores: [CONSTRUCAO],
+    nome: "Pá carregadeira",
+    resumo: "Pré-operação de pá carregadeira: motor, hidráulico, pneus, freios, articulação e cabine.",
+    origem: "base_checkvale",
+    fonte: null,
+    categorias: [
+      documentacaoMaquina, com(cabineMaquina, acessoCabine, ...comandos), motorMaquina, com(hidraulicoMaquina, ...hidraulico), rodasMaquina, freiosMaquina,
+      ["IMP", "Caçamba e articulação", "hard-hat", [
+        ["Caçamba, lâmina e dentes", "Fixados; caçamba sem trincas.", "media", false],
+        ["Braços de levantamento", "Sem trincas ou soldas soltas.", "alta", false],
+        ["Articulação central", "Pinos lubrificados e sem folga; trava de articulação presente.", "alta", false],
+      ]],
+      com(sinalizacaoMaquina, ...comunicacao), segurancaMaquina, inicioMaquina,
     ],
   },
 ];
