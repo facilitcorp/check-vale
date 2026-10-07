@@ -41,3 +41,7 @@ Modelo da biblioteca **não pode** ter regra de aplicabilidade (publicação rec
 ## Ambiguidade de aplicação (vale para todo checklist da empresa)
 
 O inspetor **nunca** escolhe o checklist: o app pega o mais específico (`escolherModelo`). Por isso a publicação (`POST /api/admin/modelos/:id/versoes/:v/publicar`) é recusada com 422 quando outro checklist publicado valeria para o mesmo veículo com a **mesma especificidade** (`regrasAmbiguas` em `packages/shared/src/regras.ts`). Regra mais específica que a outra não é ambígua: é exceção e vence onde vale. Condições de atributo claramente excludentes (`igual` a valores diferentes, `igual`×`diferente` do mesmo valor, faixas `maior`/`menor` sem interseção) separam; na dúvida, o motor considera que podem valer juntas.
+
+## Conteúdo que vem com o produto
+
+Os Modelos Base CheckVale ficam em `apps/api/src/semente/biblioteca-conteudo.ts` (blocos genéricos reaproveitados + itens do veículo). Na subida, `carregarBiblioteca` publica (v1) todo modelo cujo id ainda não existe, em qualquer ambiente; nunca altera modelo existente, e depois da primeira carga quem muda é a curadoria. Setor é encontrado pelo nome da semente `003`. Um teste recusa texto que se apresente como exigência ("oficial", "homologado", "exigência", "requisito", norma/NR, legislação, certificado, contrato, Vale, mineradora). Criticidade é sugestão do CheckVale, conservadora na dúvida, e a empresa ajusta ao adotar.
