@@ -315,7 +315,7 @@ export function EditorVersao() {
             <span className="flex-1 text-sm text-texto-suave">{alterado ? "Alterações não salvas." : "Rascunho salvo."}</span>
             <Botao variante="secundario" className="!w-auto" carregando={ocupado} disabled={!alterado} onClick={() => void salvar()}>Salvar rascunho</Botao>
             {pode(usuario?.papel ?? "inspetor", "modelo:publicar") && (
-              <Botao className="!w-auto" carregando={ocupado} onClick={() => confirm(`Publicar a versão ${modelo.versao}? Ela fica imutável e substitui a versão publicada atual.`) && void publicar()}>
+              <Botao className="!w-auto" carregando={ocupado} onClick={() => confirm(`Publicar a versão ${modelo.versao}? Ela fica imutável${modelo.versao > 1 ? " e substitui a versão publicada anterior deste checklist" : ""}. Outros checklists não mudam.`) && void publicar()}>
                 Publicar versão
               </Botao>
             )}
