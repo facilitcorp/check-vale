@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SELO_ORIGEM, SEM_RESTRICAO, type ModeloBiblioteca, type Papel, type ResumoModeloBiblioteca, type SetorComContagem } from '@checkvale/shared';
 import { PaginaBiblioteca, PaginaModeloBiblioteca, PaginaSetorBiblioteca } from './Biblioteca';
+import { EditorVersao } from './PaginaModelos';
 
 const sessao = vi.hoisted(() => ({ papel: 'admin' as Papel }));
 vi.mock('../dados/sessao', () => ({
@@ -29,10 +30,14 @@ const { categorias: _c, fonte: _f, status: _s, ...base } = MODELO;
 const RESUMO: ResumoModeloBiblioteca = { ...base, totalCategorias: 1, totalItens: 1 };
 const NOVO = { modeloId: uid(), versao: 1 };
 
+const ATUAL = { id: uid(), nome: 'Checklist geral da empresa' };
+
 let adocoes: unknown[];
+let conflitos: { id: string; nome: string }[];
 beforeEach(() => {
   sessao.papel = 'admin';
   adocoes = [];
+  conflitos = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const json = (c: unknown, status = 200) => new Response(JSON.stringify(c), { status, headers: { 'content-type': 'application/json' } });
     if (url === '/api/biblioteca/setores') return json(SETORES);
@@ -40,8 +45,11 @@ beforeEach(() => {
     if (url === `/api/biblioteca/modelos/${MODELO.id}/adotar`) {
       const corpo = JSON.parse(init!.body as string);
       adocoes.push(corpo);
-      return json({ ...NOVO, status: corpo.modo === 'usar' ? 'publicada' : 'rascunho' });
+      return json({ ...NOVO, status: corpo.modo === 'usar' && conflitos.length === 0 ? 'publicada' : 'rascunho', conflitos });
     }
+    if (url === `/api/admin/modelos/${NOVO.modeloId}/versoes/1`)
+      return json({ id: NOVO.modeloId, nome: MODELO.nome, versao: 1, aplicavel: SEM_RESTRICAO, categorias: MODELO.categorias, status: 'rascunho', demo: false, criadaEm: new Date().toISOString(), publicadaEm: null });
+    if (url.startsWith('/api/admin/')) return json([]);
     if (url === `/api/biblioteca/modelos/${MODELO.id}`) return json(MODELO);
     return json({ erro: 'nao_encontrado', mensagem: 'Não encontrado.' }, 404);
   }));
@@ -56,7 +64,7 @@ function abrir(rota: string) {
         <Route path="/admin/biblioteca/modelo/:id" element={<PaginaModeloBiblioteca />} />
         <Route path="/admin/biblioteca/:setorId" element={<PaginaSetorBiblioteca />} />
         <Route path="/admin/modelos" element={<h1>Modelos da empresa</h1>} />
-        <Route path="/admin/modelos/:id/v/:v" element={<h1>Editor do modelo</h1>} />
+        <Route path="/admin/modelos/:id/v/:v" element={<><h1>Editor do modelo</h1><EditorVersao /></>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -93,6 +101,23 @@ describe('biblioteca de checklists', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Usar modelo' }, ESPERA));
     await screen.findByRole('heading', { name: 'Editor do modelo' }, ESPERA);
     expect(adocoes).toEqual([{ modo: 'usar' }]);
+  });
+
+  it('usar modelo com conflito vira rascunho e o editor explica que o atual segue valendo', async () => {
+    conflitos = [ATUAL];
+    abrir(`/admin/biblioteca/modelo/${MODELO.id}`);
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar modelo' }, ESPERA));
+    await screen.findByText(/Já existe checklist publicado para este mesmo escopo/, undefined, ESPERA);
+    expect(document.body.textContent).toContain(`"${ATUAL.nome}"`);
+    expect(document.body.textContent).toMatch(/continua funcionando normalmente/);
+    expect(adocoes).toEqual([{ modo: 'usar' }]);
+  });
+
+  it('sem conflito o editor não mostra aviso de escopo', async () => {
+    abrir(`/admin/biblioteca/modelo/${MODELO.id}`);
+    fireEvent.click(await screen.findByRole('button', { name: /Personalizar/ }, ESPERA));
+    await screen.findByDisplayValue(MODELO.nome, undefined, ESPERA);
+    expect(screen.queryByText(/mesmo escopo/)).toBeNull();
   });
 
   it('perfil sem config:editar só consulta', async () => {

@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Eye, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   SEM_RESTRICAO,
   type Area,
@@ -11,6 +11,7 @@ import {
   type ItemChecklist,
   type ModeloChecklist,
   type ModeloResumo,
+  type ResultadoAdocao,
   type TipoVeiculo,
   type Veiculo,
   type VersaoModelo,
@@ -91,9 +92,13 @@ function mover<T extends { ordem: number }>(lista: T[], i: number, d: -1 | 1): T
   return nova.map((x, k) => ({ ...x, ordem: k + 1 }));
 }
 
+/** Estado de navegação para o editor: quem chega da biblioteca com conflito de aplicabilidade. */
+export type EstadoEditor = { conflitos?: ResultadoAdocao["conflitos"] };
+
 export function EditorVersao() {
   const { id, v } = useParams();
   const navegar = useNavigate();
+  const conflitos = (useLocation().state as EstadoEditor | null)?.conflitos ?? [];
   const { usuario } = useSessao();
   const versao = useRecurso<VersaoModelo>(`/admin/modelos/${id}/versoes/${v}`);
   const refs: Referencias = {
@@ -184,6 +189,14 @@ export function EditorVersao() {
           {pode(usuario?.papel ?? "inspetor", "config:editar") && (
             <button className="ml-2 font-semibold text-marca underline" onClick={() => void novoRascunho()}>Criar nova versão a partir desta</button>
           )}
+        </Aviso>
+      )}
+
+      {rascunho && conflitos.length > 0 && (
+        <Aviso>
+          <strong>Já existe checklist publicado para este mesmo escopo:</strong> {conflitos.map((c) => `"${c.nome}"`).join(", ")}.
+          {" "}Por isso este modelo entrou como rascunho. Defina abaixo onde ele vale (tipo de veículo, área, atividade ou atributo) para que só um checklist sirva a cada veículo.
+          {" "}O checklist atual continua funcionando normalmente até este ser publicado.
         </Aviso>
       )}
 

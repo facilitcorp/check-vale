@@ -13,6 +13,7 @@ import { Aviso, Botao } from "../componentes/ui";
 import { useSessao } from "../dados/sessao";
 import { enviar, textoErro, useRecurso } from "./api";
 import { Cadastro, Selo } from "./Cadastro";
+import type { EstadoEditor } from "./PaginaModelos";
 
 /**
  * Biblioteca de checklists por setor (docs/BIBLIOTECA.md):
@@ -154,7 +155,8 @@ export function PaginaModeloBiblioteca() {
     setFalha(null);
     try {
       const r = await enviar<ResultadoAdocao>("POST", `/biblioteca/modelos/${m!.id}/adotar`, { modo });
-      navegar(`/admin/modelos/${r.modeloId}/v/${r.versao}`);
+      // Com conflito, "usar" volta como rascunho: o editor explica e pede a aplicabilidade.
+      navegar(`/admin/modelos/${r.modeloId}/v/${r.versao}`, { state: { conflitos: r.conflitos } satisfies EstadoEditor });
     } catch (e) {
       setFalha(textoErro(e));
     } finally {
@@ -214,7 +216,7 @@ export function PaginaModeloBiblioteca() {
       {podeEditar ? (
         <section className="grid gap-2 sm:grid-cols-3">
           <Botao disabled={!podePublicar || !!ocupado} carregando={ocupado === "usar"} onClick={() => void adotar("usar")}
-            title={podePublicar ? "Copia para a sua empresa e já publica para os inspetores" : "Seu perfil não publica checklists"}>
+            title={podePublicar ? "Copia para a sua empresa e publica, se nenhum checklist publicado já valer para os mesmos veículos" : "Seu perfil não publica checklists"}>
             Usar modelo
           </Botao>
           <Botao variante="secundario" disabled={!!ocupado} carregando={ocupado === "personalizar"} onClick={() => void adotar("personalizar")}>
@@ -225,7 +227,7 @@ export function PaginaModeloBiblioteca() {
       ) : (
         <Aviso>Seu perfil pode consultar a biblioteca, mas não adotar modelos.</Aviso>
       )}
-      <p className="text-xs text-texto-suave">"Usar modelo" cria uma cópia publicada na sua empresa. "Personalizar" cria um rascunho para você ajustar antes de publicar. Mudanças futuras na biblioteca não alteram as suas cópias.</p>
+      <p className="text-xs text-texto-suave">"Usar modelo" cria uma cópia publicada na sua empresa; se outro checklist publicado já valer para os mesmos veículos, a cópia fica como rascunho para você definir onde ela vale, e o atual continua funcionando. "Personalizar" cria um rascunho para você ajustar antes de publicar. Mudanças futuras na biblioteca não alteram as suas cópias.</p>
     </div>
   );
 }
