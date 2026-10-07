@@ -21,6 +21,8 @@ describe("conteúdo da biblioteca", () => {
     expect(validarModeloBiblioteca({ categorias, origem: m.origem, fonte: m.fonte, setorIds: m.setores })).toEqual([]);
     const textos = [m.nome, m.resumo, ...categorias.flatMap((c) => [c.nome, ...c.itens.flatMap((i) => [i.titulo, i.descricao])])];
     if (m.origem === "base_checkvale") expect(textos.filter((t) => PROIBIDO.test(t))).toEqual([]);
+    // Evidência sempre explícita: a empresa vê no editor o que o modelo sugere.
+    expect(categorias.flatMap((c) => c.itens).filter((i) => !i.evidencia)).toEqual([]);
   });
 
   it("a trava pega afirmações equivalentes e deixa passar texto comum", () => {

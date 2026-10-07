@@ -1,4 +1,4 @@
-import type { CategoriaConteudo, ItemConteudo } from "./biblioteca";
+import { comFoto, comObservacao, type CategoriaConteudo, type ItemConteudo } from "./biblioteca";
 
 /**
  * Blocos de Transporte e Construção: só o que os blocos genéricos de
@@ -81,7 +81,7 @@ export const guindautoObra: ItemConteudo[] = [
 
 export const documentacaoMaquina: CategoriaConteudo = ["DOC", "Documentação e identificação", "document", [
   ["Identificação do equipamento", "Prefixo ou código visível.", "baixa"],
-  ["Horímetro", "Funcionando; leitura registrada.", "media", false],
+  comObservacao(["Horímetro", "Funcionando; anote a leitura.", "media", false]),
   ["Manual de operação", "Disponível na máquina ou com o operador.", "baixa"],
 ]];
 
@@ -136,7 +136,7 @@ export const sinalizacaoMaquina: CategoriaConteudo = ["LUZ", "Iluminação e sin
 ]];
 
 export const segurancaMaquina: CategoriaConteudo = ["SEG", "Equipamentos de segurança", "shield", [
-  ["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"],
+  comFoto(["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"]),
   ["Proteções e tampas", "Capô e proteções de partes móveis fechados e fixados.", "alta", false],
 ]];
 

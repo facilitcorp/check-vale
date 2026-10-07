@@ -1,4 +1,4 @@
-import { SEM_RESTRICAO, validarModeloBiblioteca, type CategoriaChecklist, type Criticidade, type OrigemBiblioteca } from "@checkvale/shared";
+import { EVIDENCIA_PADRAO, SEM_RESTRICAO, validarModeloBiblioteca, type CategoriaChecklist, type Criticidade, type EvidenciaItem, type OrigemBiblioteca } from "@checkvale/shared";
 import { TRAVA_SUBIDA, type Db } from "../db";
 import { idDe } from "./dados";
 
@@ -8,8 +8,13 @@ import { idDe } from "./dados";
  * cliente ou contrato como exigência; referencia só com fonte.
  */
 
-/** [título, descrição, criticidade sugerida, permite "não se aplica" (padrão: sim)] */
-export type ItemConteudo = [titulo: string, descricao: string, criticidade: Criticidade, permiteNaoAplica?: boolean];
+/** [título, descrição, criticidade sugerida, permite "não se aplica" (padrão: sim), evidência (padrão: foto só na NC)] */
+export type ItemConteudo = [titulo: string, descricao: string, criticidade: Criticidade, permiteNaoAplica?: boolean, evidencia?: EvidenciaItem];
+
+/** O item pede foto mesmo conforme. Usar pouco: cada foto é um passo a mais no campo. */
+export const comFoto = ([t, d, c, na]: ItemConteudo): ItemConteudo => [t, d, c, na, "foto"];
+/** O item pede um registro em texto (ex.: leitura). */
+export const comObservacao = ([t, d, c, na]: ItemConteudo): ItemConteudo => [t, d, c, na, "observacao"];
 /** [código, nome, ícone, itens]. Código da categoria vira prefixo do código do item. */
 export type CategoriaConteudo = [codigo: string, nome: string, icone: string, itens: ItemConteudo[]];
 
@@ -33,7 +38,7 @@ export function montarCategorias(m: Pick<ModeloConteudo, "chave" | "categorias">
     icone,
     ordem: ci + 1,
     aplicavel: SEM_RESTRICAO,
-    itens: itens.map(([titulo, descricao, criticidade, permiteNaoAplica], ii) => ({
+    itens: itens.map(([titulo, descricao, criticidade, permiteNaoAplica, evidencia], ii) => ({
       id: idDe(`biblioteca:${m.chave}:${codigo}:${ii + 1}`),
       codigo: `${codigo}.${ii + 1}`,
       titulo,
@@ -42,6 +47,8 @@ export function montarCategorias(m: Pick<ModeloConteudo, "chave" | "categorias">
       permiteNaoAplica: permiteNaoAplica ?? true,
       criticidadeSugerida: criticidade,
       aplicavel: SEM_RESTRICAO,
+      // Explícito na cópia: a empresa vê no editor o que o modelo sugere.
+      evidencia: evidencia ?? EVIDENCIA_PADRAO,
     })),
   }));
 }

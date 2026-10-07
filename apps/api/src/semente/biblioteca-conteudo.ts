@@ -1,4 +1,4 @@
-import type { CategoriaConteudo, ItemConteudo, ModeloConteudo } from "./biblioteca";
+import { comFoto, comObservacao, type CategoriaConteudo, type ItemConteudo, type ModeloConteudo } from "./biblioteca";
 import {
   acoplamento, amarracao, betoneira, cabineMaquina, cacamba, documentacaoImplemento, documentacaoMaquina, estruturaImplemento, esteiras,
   faixasRefletivas, freioImplemento, freiosMaquina, guindautoObra, hidraulicoMaquina, iluminacaoImplemento, inicioMaquina, motorMaquina,
@@ -26,7 +26,7 @@ const com = ([codigo, nome, icone, itens]: CategoriaConteudo, ...extras: ItemCon
 const documentacao: CategoriaConteudo = ["DOC", "Documentação e identificação", "document", [
   ["Documento do veículo", "Disponível e dentro da validade.", "alta", false],
   ["Identificação da frota", "Prefixo ou código visível.", "baixa"],
-  ["Hodômetro / horímetro", "Funcionando; leitura registrada.", "media", false],
+  comObservacao(["Hodômetro / horímetro", "Funcionando; anote a leitura.", "media", false]),
 ]];
 
 const cabine: CategoriaConteudo = ["CAB", "Cabine", "id-card", [
@@ -77,7 +77,7 @@ const pneus: CategoriaConteudo = ["PNE", "Pneus e rodas", "tire", [
 
 const seguranca: CategoriaConteudo = ["SEG", "Equipamentos de segurança", "shield", [
   ["Triângulo, macaco e chave de roda", "Presentes e em condição de uso.", "media", false],
-  ["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"],
+  comFoto(["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"]),
   ["Calço de roda", "Presente no veículo.", "media"],
   ["Kit de primeiros socorros", "Presente e completo.", "baixa"],
 ]];
@@ -199,7 +199,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
     categorias: [
       ["DOC", "Documentação e identificação", "document", [
         ["Identificação do equipamento", "Prefixo ou código visível.", "baixa"],
-        ["Horímetro", "Funcionando; leitura registrada.", "media", false],
+        comObservacao(["Horímetro", "Funcionando; anote a leitura.", "media", false]),
         ["Manual ou tabela de operação", "Disponível no equipamento.", "baixa"],
       ]],
       ["CAB", "Cabine e acesso", "id-card", [
@@ -237,7 +237,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ...comunicacao,
       ]],
       ["SEG", "Equipamentos de segurança", "shield", [
-        ["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"],
+        comFoto(["Extintor de incêndio", "Fixado, lacrado e dentro da validade.", "alta"]),
         ["Freio de serviço e de estacionamento", "Seguram o equipamento parado em rampa.", "critica", false],
       ]],
       ["INI", "Condições para início da operação", "hard-hat", [
@@ -318,7 +318,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ["Descida de emergência", "Funciona sem o motor ligado.", "critica"],
         ["Cesto", "Sem trincas; piso e portinhola em bom estado.", "critica", false],
         ["Ponto de ancoragem no cesto", "Presente e sem deformação.", "critica", false],
-        ["Partes isolantes da lança e do cesto", "Limpas, secas e sem danos aparentes.", "critica"],
+        comFoto(["Partes isolantes da lança e do cesto", "Limpas, secas e sem danos aparentes.", "critica"]),
         ["Nivelamento do cesto", "Cesto se mantém nivelado ao mover a lança.", "alta"],
         ["Indicador de nivelamento do veículo", "Legível e funcionando.", "media"],
       ]],
