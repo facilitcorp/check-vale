@@ -73,6 +73,32 @@ describe('fluxo da inspeção (telas 5–12) na base real', () => {
     expect(await banco.evidencias.get(r.evidenciaIds[0]!)).toBeTruthy();
   });
 
+  it('evidência do item: "Fotografia" pede foto e "Observação" pede texto mesmo conforme', async () => {
+    const v = await novaInspecao();
+    abrir(rotasInspecao.item(v.id, item('CRLV em dia').id));
+    await screen.findByRole('heading', { name: 'CRLV em dia' }, ESPERA);
+    screen.getByText('Foto (obrigatória neste item)');
+    fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    expect(screen.getByRole('alert').textContent).toMatch('foto');
+    fireEvent.change(screen.getByTestId('entrada-foto'), { target: { files: [new File(['x'], 'f.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remover foto' })).toHaveLength(1), ESPERA);
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+
+    await screen.findByRole('heading', { name: 'Seguro obrigatório' }, ESPERA);
+    screen.getByText('Observação (obrigatória neste item)');
+    fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    expect(screen.getByRole('alert').textContent).toMatch('observação');
+    fireEvent.change(screen.getByPlaceholderText('Digite aqui...'), { target: { value: 'Apólice vigente até 12/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }));
+    await screen.findByRole('heading', { name: 'Autorização de tráfego interno' }, ESPERA);
+
+    const salvo = await repositorioInspecao.obter(v.id);
+    expect(salvo!.respostas.find((x) => x.itemId === item('CRLV em dia').id)!.evidenciaIds).toHaveLength(1);
+    expect(salvo!.respostas.find((x) => x.itemId === item('Seguro obrigatório').id)!.observacao).toBe('Apólice vigente até 12/2026');
+  });
+
   it('remover foto desvincula da resposta ao salvar', async () => {
     const v = await novaInspecao();
     const alvo = item('Lanternas traseiras');
@@ -127,6 +153,18 @@ describe('fluxo da inspeção (telas 5–12) na base real', () => {
     fireEvent.click(botao);
     await screen.findByRole('heading', { name: 'Verificação concluída!' }, ESPERA);
     expect((await repositorioInspecao.obter(v.id))!.status).toBe('concluida');
+  });
+  it('concluir com item sem a evidência pedida leva ao item em vez de concluir', async () => {
+    const v = await novaInspecao();
+    for (const i of ITENS_LEVE) await responder(v.id, i.id, 'conforme');
+    // Resposta gravada sem a foto que o item pede (ex.: app antigo, antes do campo existir).
+    const crlv = item('CRLV em dia');
+    await repositorioInspecao.salvarResposta(v.id, { itemId: crlv.id, status: 'conforme', observacao: null, naoConformidade: null, evidenciaIds: [] });
+    abrir(rotasInspecao.categorias(v.id));
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir verificação' }, ESPERA));
+    await screen.findByRole('heading', { name: 'CRLV em dia' }, ESPERA);
+    expect(screen.getByRole('alert').textContent).toMatch('foto');
+    expect((await repositorioInspecao.obter(v.id))!.status).toBe('em_andamento');
   });
 });
 

@@ -123,6 +123,27 @@ export const SEM_RESTRICAO: RegraAplicabilidade = { tipoVeiculoIds: [], areaIds:
 // Modelo de checklist
 // ---------------------------------------------------------------------------
 
+/**
+ * Evidência pedida no item. Estende a regra de sempre (foto em toda não
+ * conformidade), nunca a afrouxa:
+ * - sem_evidencia: nada além da regra de sempre;
+ * - observacao: texto obrigatório ao responder (na NC, a descrição conta);
+ * - foto: foto obrigatória ao responder, conforme ou não;
+ * - foto_se_nc: a regra de sempre, explícita (padrão de item sem o campo).
+ * "Não se aplica" nunca pede evidência.
+ */
+export const EvidenciaItem = z.enum(["sem_evidencia", "observacao", "foto", "foto_se_nc"]);
+export type EvidenciaItem = z.infer<typeof EvidenciaItem>;
+export const EVIDENCIA_PADRAO: EvidenciaItem = "foto_se_nc";
+
+/** Rótulos da tela. Componentes usam este mapa, nunca o texto solto. */
+export const ROTULO_EVIDENCIA: Record<EvidenciaItem, string> = {
+  sem_evidencia: "Sem evidência obrigatória",
+  observacao: "Observação",
+  foto: "Fotografia",
+  foto_se_nc: "Fotografia quando houver não conformidade",
+};
+
 export const ItemChecklist = z.object({
   id: Id,
   codigo: z.string().trim().min(1), // estável entre versões do modelo
@@ -135,6 +156,8 @@ export const ItemChecklist = z.object({
   criticidadeSugerida: Criticidade.nullable(),
   /** Quando o item aparece. Item fora da regra não é perguntado nem conta no índice. */
   aplicavel: RegraAplicabilidade,
+  /** Evidência pedida. Ausente = EVIDENCIA_PADRAO (itens gravados antes do campo existir). */
+  evidencia: EvidenciaItem.optional(),
 });
 export type ItemChecklist = z.infer<typeof ItemChecklist>;
 
@@ -237,6 +260,20 @@ export const Resposta = z
     }
   });
 export type Resposta = z.infer<typeof Resposta>;
+
+export const evidenciaDoItem = (item: Pick<ItemChecklist, "evidencia">): EvidenciaItem => item.evidencia ?? EVIDENCIA_PADRAO;
+
+/**
+ * O que falta de evidência nesta resposta, pela configuração do item. A foto da
+ * não conformidade continua garantida pelo próprio schema de Resposta.
+ */
+export function faltaEvidencia(item: Pick<ItemChecklist, "evidencia">, r: Pick<Resposta, "status" | "observacao" | "naoConformidade" | "evidenciaIds">): string | null {
+  if (r.status === "nao_aplica") return null;
+  const ev = evidenciaDoItem(item);
+  if (r.evidenciaIds.length === 0 && (ev === "foto" || r.status === "nao_conforme")) return "Tire ao menos uma foto deste item.";
+  if (ev === "observacao" && !r.observacao?.trim() && !r.naoConformidade?.descricao.trim()) return "Escreva uma observação sobre este item.";
+  return null;
+}
 
 export const StatusInspecao = z.enum(["em_andamento", "concluida", "cancelada"]);
 export type StatusInspecao = z.infer<typeof StatusInspecao>;

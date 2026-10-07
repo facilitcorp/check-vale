@@ -3,7 +3,7 @@
  * primeiro sync (catálogo, modelo, veículo) e um servidor falso no fetch.
  */
 import { vi } from 'vitest';
-import { SEM_RESTRICAO, type Catalogo, type ModeloChecklist, type OperacaoSync, type SyncEntrada, type Veiculo } from '@checkvale/shared';
+import { SEM_RESTRICAO, type Catalogo, type EvidenciaItem, type ModeloChecklist, type OperacaoSync, type SyncEntrada, type Veiculo } from '@checkvale/shared';
 import { banco, chaveModelo } from '../dados/banco';
 import { repositorioInspecao } from '../dados/repositorio';
 
@@ -23,6 +23,9 @@ const CATEGORIAS: [nome: string, icone: string, itens: string[], soPesado?: bool
   // regra real de aplicabilidade: só veículo pesado tem telemetria
   ['Telemetria e tecnologia', 'satellite', ['Rastreador ativo', 'Câmera de fadiga'], true],
 ];
+
+/** Itens com evidência configurada; os demais ficam sem o campo (regra de sempre). */
+const EVIDENCIAS: Record<string, EvidenciaItem> = { 'CRLV em dia': 'foto', 'Seguro obrigatório': 'observacao' };
 
 export const MODELO: ModeloChecklist = {
   id: uid(),
@@ -45,6 +48,7 @@ export const MODELO: ModeloChecklist = {
       permiteNaoAplica: true,
       criticidadeSugerida: null,
       aplicavel: SEM_RESTRICAO,
+      ...(EVIDENCIAS[titulo] ? { evidencia: EVIDENCIAS[titulo] } : {}),
     })),
   })),
 };
@@ -115,8 +119,12 @@ export async function novaInspecao(placa = 'OWQ3A15', demo = false) {
 const foto = () => new Blob(['x'], { type: 'image/jpeg' });
 
 /** Responde direto pelo repositório da fundação (atalho de teste). */
+/** Responde cumprindo a evidência que o item pede (foto/observação), como o app exige. */
 export async function responder(inspecaoId: string, itemId: string, status: 'conforme' | 'nao_aplica') {
-  await repositorioInspecao.salvarResposta(inspecaoId, { itemId, status, observacao: null, naoConformidade: null, evidenciaIds: [] });
+  const ev = status === 'conforme' ? MODELO.categorias.flatMap((c) => c.itens).find((i) => i.id === itemId)?.evidencia : undefined;
+  const evidenciaIds = ev === 'foto' ? [(await repositorioInspecao.adicionarEvidencia(inspecaoId, itemId, foto())).id] : [];
+  const observacao = ev === 'observacao' ? 'Verificado.' : null;
+  await repositorioInspecao.salvarResposta(inspecaoId, { itemId, status, observacao, naoConformidade: null, evidenciaIds });
 }
 export async function responderNc(inspecaoId: string, itemId: string, descricao: string, criticidade: 'critica' | 'alta' | 'media' | 'baixa') {
   const e = await repositorioInspecao.adicionarEvidencia(inspecaoId, itemId, foto());

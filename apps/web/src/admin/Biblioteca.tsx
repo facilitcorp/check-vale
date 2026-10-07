@@ -5,7 +5,7 @@ import {
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  pode, SELO_ORIGEM,
+  evidenciaDoItem, pode, ROTULO_EVIDENCIA, SELO_ORIGEM,
   type AdotarModelo, type Criticidade, type ModeloBiblioteca, type OrigemBiblioteca, type ResultadoAdocao, type ResumoModeloBiblioteca,
   type Setor, type SetorComContagem,
 } from "@checkvale/shared";
@@ -195,6 +195,8 @@ export function PaginaModeloBiblioteca() {
                       <li key={i.id} className="text-sm">
                         <span>{i.titulo}</span>
                         {i.criticidadeSugerida && <span className="ml-2 text-xs text-texto-suave">({CRITICIDADE[i.criticidadeSugerida]})</span>}
+                        {/* Só o que pede além da regra de sempre (foto em toda NC). */}
+                        {["foto", "observacao"].includes(evidenciaDoItem(i)) && <span className="ml-2 text-xs text-texto-suave">· {ROTULO_EVIDENCIA[evidenciaDoItem(i)]}</span>}
                         {i.descricao && <span className="block text-xs text-texto-suave">{i.descricao}</span>}
                       </li>
                     ))}
