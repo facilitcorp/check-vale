@@ -11,6 +11,8 @@ export const PERMISSOES = [
   "config:editar", // cadastrar operação, veículos, atributos, modelos
   "modelo:publicar", // publicar versão de checklist
   "usuario:gerenciar",
+  "biblioteca:ler", // navegar setores e modelos da biblioteca
+  "biblioteca:editar", // cadastrar setores e curar modelos da biblioteca
 ] as const;
 export type Permissao = (typeof PERMISSOES)[number];
 
