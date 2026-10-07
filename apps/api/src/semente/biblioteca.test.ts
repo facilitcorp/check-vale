@@ -12,7 +12,8 @@ beforeAll(async () => {
 afterAll(async () => db.fechar());
 
 // Origem honesta: modelo base não se apresenta como exigência de ninguém.
-const PROIBIDO = /oficial|homologad|exigid|obrigat[óo]ri[oa] por|\bvale\b|mineradora|contrato|\bNR[- ]?\d/i;
+// "vale" barra também o verbo ("vale a pena"): num modelo base, melhor evitar a palavra.
+const PROIBIDO = /oficial|homologad|exig|requisito|\bnormas?\b|regulament|legisla|certificad|obrigat[óo]ri[oa] por|\bvale\b|mineradora|contrato|\bNR[- ]?\d/i;
 
 describe("conteúdo da biblioteca", () => {
   it.each(MODELOS_BIBLIOTECA.map((m) => [m.nome, m] as const))("%s é válido e não se apresenta como exigência", (_, m) => {
@@ -20,6 +21,12 @@ describe("conteúdo da biblioteca", () => {
     expect(validarModeloBiblioteca({ categorias, origem: m.origem, fonte: m.fonte, setorIds: m.setores })).toEqual([]);
     const textos = [m.nome, m.resumo, ...categorias.flatMap((c) => [c.nome, ...c.itens.flatMap((i) => [i.titulo, i.descricao])])];
     if (m.origem === "base_checkvale") expect(textos.filter((t) => PROIBIDO.test(t))).toEqual([]);
+  });
+
+  it("a trava pega afirmações equivalentes e deixa passar texto comum", () => {
+    for (const t of ["Padrão oficial", "Homologado", "Exigido pela Vale", "Exigência do cliente", "Requisito do cliente", "conforme norma regulamentadora", "Atende à legislação", "Certificado", "NR-12", "Previsto em contrato"])
+      expect(PROIBIDO.test(t), t).toBe(true);
+    for (const t of ["Funcionamento normal", "Sem trincas no campo de visão do condutor."]) expect(PROIBIDO.test(t), t).toBe(false);
   });
 
   it("chaves únicas", () => {
