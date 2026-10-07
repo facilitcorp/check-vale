@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { aplicarRegras, calcularResultado, contextoDaInspecao, SyncEntrada, validarAtributos, type Evidencia, type Inspecao, type OperacaoSync, type ResultadoOp, type SyncSaida, type Veiculo } from "@checkvale/shared";
+import { aplicarRegras, calcularResultado, contextoDaInspecao, faltaEvidencia, SyncEntrada, validarAtributos, type Evidencia, type Inspecao, type OperacaoSync, type ResultadoOp, type SyncSaida, type Veiculo } from "@checkvale/shared";
 import type { Sessao } from "../app";
 import type { Db } from "../db";
 import { carregarAtributos, carregarInspecoes, carregarModelo } from "../mapeamento";
@@ -96,6 +96,16 @@ async function salvarInspecao(tx: Db, s: Sessao, i: Inspecao) {
   const atual = await tx.query<{ inspetor_id: string; status: string }>(`SELECT inspetor_id, status FROM inspecoes WHERE id = $1 FOR UPDATE`, [i.id]);
   if (atual.rows[0] && atual.rows[0].inspetor_id !== s.sub) throw new Rejeicao("Inspeção pertence a outro inspetor.");
   const jaFinal = atual.rows[0] && atual.rows[0].status !== "em_andamento";
+
+  // Evidência pedida pelo item (foto/observação) é cobrada ao concluir; em andamento o app ainda está preenchendo.
+  if (!jaFinal && i.status === "concluida") {
+    const respostas = new Map(i.respostas.map((r) => [r.itemId, r]));
+    for (const it of aplicarRegras(modelo, contextoDaInspecao(i)).categorias.flatMap((c) => c.itens)) {
+      const r = respostas.get(it.id);
+      const falta = r && faltaEvidencia(it, r);
+      if (falta) throw new Rejeicao(`Item "${it.titulo}": ${falta}`);
+    }
+  }
 
   if (!jaFinal) {
     await tx.query(
