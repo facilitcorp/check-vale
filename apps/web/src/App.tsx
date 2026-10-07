@@ -5,6 +5,7 @@ import { iniciarSincronizacao } from "./dados/sincronizacao";
 import { LayoutAdmin } from "./admin/LayoutAdmin";
 import { PaginaFrota, PaginaOperacao, PaginaUsuarios } from "./admin/PaginasCadastro";
 import { EditorVersao, PaginaModelos } from "./admin/PaginaModelos";
+import { PaginaBiblioteca, PaginaModeloBiblioteca, PaginaSetorBiblioteca, PaginaSetores } from "./admin/Biblioteca";
 import { Abertura } from "./telas/Abertura";
 import { CadastroVeiculo } from "./telas/CadastroVeiculo";
 import { Entrar } from "./telas/Entrar";
@@ -37,6 +38,10 @@ export function App() {
           <Route index element={<Navigate to="modelos" replace />} />
           <Route path="modelos" element={<PaginaModelos />} />
           <Route path="modelos/:id/v/:v" element={<EditorVersao />} />
+          <Route path="biblioteca" element={<PaginaBiblioteca />} />
+          <Route path="biblioteca/modelo/:id" element={<PaginaModeloBiblioteca />} />
+          <Route path="biblioteca/:setorId" element={<PaginaSetorBiblioteca />} />
+          <Route path="setores" element={<PaginaSetores />} />
           <Route path="operacao" element={<PaginaOperacao />} />
           <Route path="frota" element={<PaginaFrota />} />
           <Route path="usuarios" element={<PaginaUsuarios />} />

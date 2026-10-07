@@ -1,10 +1,11 @@
 import { pode } from "@checkvale/shared";
-import { ClipboardList, Cog, LogOut, Smartphone, Truck, Users } from "lucide-react";
+import { ClipboardList, Cog, LibraryBig, LogOut, Smartphone, Truck, Users } from "lucide-react";
 import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { Logo } from "../componentes/ui";
 import { sair, useSessao } from "../dados/sessao";
 
 const MENU = [
+  { para: "/admin/biblioteca", rotulo: "Biblioteca", icone: LibraryBig },
   { para: "/admin/modelos", rotulo: "Checklists", icone: ClipboardList },
   { para: "/admin/operacao", rotulo: "Operação", icone: Cog },
   { para: "/admin/frota", rotulo: "Frota", icone: Truck },
@@ -33,7 +34,7 @@ export function LayoutAdmin() {
           <button aria-label="Sair" onClick={() => void sair()} className="flex size-11 items-center justify-center rounded-lg hover:bg-white/10"><LogOut size={18} /></button>
         </div>
         {/* No celular, as abas dividem a largura: nenhuma fica escondida atrás de rolagem. */}
-        <nav className="grid grid-cols-4 gap-1 px-2 pb-2 md:hidden">
+        <nav className="grid grid-cols-5 gap-1 px-2 pb-2 md:hidden">
           {MENU.map((m) => (
             <NavLink key={m.para} to={m.para} className={({ isActive }) => `flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-xs ${isActive ? "bg-white/20" : ""}`}>
               <m.icone size={18} /> <span className="max-w-full truncate">{m.rotulo}</span>
