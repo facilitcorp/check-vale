@@ -15,6 +15,8 @@ export type ItemConteudo = [titulo: string, descricao: string, criticidade: Crit
 export const comFoto = ([t, d, c, na]: ItemConteudo): ItemConteudo => [t, d, c, na, "foto"];
 /** O item pede um registro em texto (ex.: leitura). */
 export const comObservacao = ([t, d, c, na]: ItemConteudo): ItemConteudo => [t, d, c, na, "observacao"];
+/** Verifica-se acionando ou olhando na hora: nada a registrar se conforme (a NC continua exigindo foto). */
+export const semEvidencia = ([t, d, c, na]: ItemConteudo): ItemConteudo => [t, d, c, na, "sem_evidencia"];
 /** [código, nome, ícone, itens]. Código da categoria vira prefixo do código do item. */
 export type CategoriaConteudo = [codigo: string, nome: string, icone: string, itens: ItemConteudo[]];
 

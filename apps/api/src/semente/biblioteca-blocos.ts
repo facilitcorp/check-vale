@@ -1,4 +1,4 @@
-import { comFoto, comObservacao, type CategoriaConteudo, type ItemConteudo } from "./biblioteca";
+import { comFoto, comObservacao, semEvidencia, type CategoriaConteudo, type ItemConteudo } from "./biblioteca";
 
 /**
  * Blocos de Transporte e Construção: só o que os blocos genéricos de
@@ -24,7 +24,7 @@ export const soloApoio: ItemConteudo = ["Solo de apoio", "Firme e nivelado onde 
 
 export const documentacaoImplemento: CategoriaConteudo = ["DOC", "Documentação e identificação", "document", [
   ["Documento do implemento", "Disponível e dentro da validade.", "alta", false],
-  ["Placa e identificação da frota", "Legíveis e fixadas.", "media", false],
+  comObservacao(["Placa e identificação da frota", "Legíveis e fixadas; anote a placa ou o prefixo.", "media", false]),
 ]];
 
 export const acoplamento: CategoriaConteudo = ["ACO", "Engate e acoplamento", "car", [
@@ -47,8 +47,8 @@ export const freioImplemento: CategoriaConteudo = ["FRE", "Freios", "brake", [
 ]];
 
 export const iluminacaoImplemento: CategoriaConteudo = ["LUZ", "Iluminação e sinalização", "light", [
-  ["Lanternas e luz de freio", "Funcionando nos dois lados.", "alta", false],
-  ["Setas", "Funcionando nos dois lados.", "alta", false],
+  semEvidencia(["Lanternas e luz de freio", "Funcionando nos dois lados.", "alta", false]),
+  semEvidencia(["Setas", "Funcionando nos dois lados.", "alta", false]),
   ["Luzes delimitadoras e de placa", "Acendem e estão íntegras.", "media", false],
   faixasRefletivas,
 ]];
@@ -80,7 +80,7 @@ export const guindautoObra: ItemConteudo[] = [
 // --- Máquinas de obra -------------------------------------------------------
 
 export const documentacaoMaquina: CategoriaConteudo = ["DOC", "Documentação e identificação", "document", [
-  ["Identificação do equipamento", "Prefixo ou código visível.", "baixa"],
+  comObservacao(["Identificação do equipamento", "Prefixo ou código visível; anote-o.", "baixa"]),
   comObservacao(["Horímetro", "Funcionando; anote a leitura.", "media", false]),
   ["Manual de operação", "Disponível na máquina ou com o operador.", "baixa"],
 ]];
@@ -89,7 +89,7 @@ export const cabineMaquina: CategoriaConteudo = ["CAB", "Cabine e comandos", "id
   ["Estrutura de proteção da cabine", "Sem trincas, amassados ou fixação solta.", "critica", false],
   ["Vidros", "Sem trincas que atrapalhem a visão.", "alta", false],
   ["Cinto de segurança", "Trava e recolhe.", "critica", false],
-  ["Retrovisores / câmeras", "Completos, limpos e ajustados.", "alta"],
+  semEvidencia(["Retrovisores / câmeras", "Completos, limpos e ajustados.", "alta"]),
   ["Trava dos comandos", "Bloqueia os movimentos quando acionada.", "critica", false],
   ["Limpeza da cabine", "Sem objetos soltos junto aos pedais e comandos.", "media", false],
 ]];
@@ -101,7 +101,7 @@ export const motorMaquina: CategoriaConteudo = ["MOT", "Motor, fluidos e bateria
   ["Filtro de ar", "Sem indicação de saturação.", "media"],
   ["Vazamentos aparentes", "Sem poça ou gotejamento sob a máquina.", "alta", false],
   ["Bateria e chave geral", "Fixadas; chave geral funcionando.", "media", false],
-  ["Painel e alarmes", "Sem alerta aceso após a partida.", "alta", false],
+  semEvidencia(["Painel e alarmes", "Sem alerta aceso após a partida.", "alta", false]),
   ["Acúmulo de material inflamável", "Sem graxa, óleo ou resíduos junto ao motor e escapamento.", "alta", false],
 ]];
 
@@ -130,9 +130,9 @@ export const freiosMaquina: CategoriaConteudo = ["FRE", "Freios e direção", "b
 ]];
 
 export const sinalizacaoMaquina: CategoriaConteudo = ["LUZ", "Iluminação e sinalização", "light", [
-  ["Faróis de trabalho", "Funcionando.", "alta"],
-  ["Alarme de ré / deslocamento", "Aciona ao movimentar a máquina.", "alta", false],
-  ["Buzina", "Funcionando.", "alta", false],
+  semEvidencia(["Faróis de trabalho", "Funcionando.", "alta"]),
+  semEvidencia(["Alarme de ré / deslocamento", "Aciona ao movimentar a máquina.", "alta", false]),
+  semEvidencia(["Buzina", "Funcionando.", "alta", false]),
 ]];
 
 export const segurancaMaquina: CategoriaConteudo = ["SEG", "Equipamentos de segurança", "shield", [
@@ -141,11 +141,11 @@ export const segurancaMaquina: CategoriaConteudo = ["SEG", "Equipamentos de segu
 ]];
 
 export const inicioMaquina: CategoriaConteudo = ["INI", "Condições para início da operação", "hard-hat", [
-  ["Volta ao redor do equipamento", "Área livre de pessoas e obstáculos no raio de giro antes de mover.", "critica", false],
+  semEvidencia(["Volta ao redor do equipamento", "Área livre de pessoas e obstáculos no raio de giro antes de mover.", "critica", false]),
   ["Redes aéreas e enterradas", "Verificadas e sinalizadas antes de escavar ou erguer o implemento.", "critica"],
   soloApoio,
-  ["Teste dos comandos", "Movimentos respondem sem atraso ou tranco antes de iniciar o trabalho.", "critica", false],
-  ["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false],
-  ["Operador", "Habilitado para este equipamento e em condição de operar.", "critica", false],
+  semEvidencia(["Teste dos comandos", "Movimentos respondem sem atraso ou tranco antes de iniciar o trabalho.", "critica", false]),
+  semEvidencia(["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false]),
+  semEvidencia(["Operador", "Habilitado para este equipamento e em condição de operar.", "critica", false]),
   ["Estacionamento", "Implemento apoiado no solo e comandos travados ao sair da máquina.", "alta", false],
 ]];

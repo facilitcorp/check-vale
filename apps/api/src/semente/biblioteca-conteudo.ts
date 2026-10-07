@@ -1,4 +1,4 @@
-import { comFoto, comObservacao, type CategoriaConteudo, type ItemConteudo, type ModeloConteudo } from "./biblioteca";
+import { comFoto, comObservacao, semEvidencia, type CategoriaConteudo, type ItemConteudo, type ModeloConteudo } from "./biblioteca";
 import {
   acoplamento, amarracao, betoneira, cabineMaquina, cacamba, documentacaoImplemento, documentacaoMaquina, estruturaImplemento, esteiras,
   faixasRefletivas, freioImplemento, freiosMaquina, guindautoObra, hidraulicoMaquina, iluminacaoImplemento, inicioMaquina, motorMaquina,
@@ -25,7 +25,7 @@ const com = ([codigo, nome, icone, itens]: CategoriaConteudo, ...extras: ItemCon
 
 const documentacao: CategoriaConteudo = ["DOC", "Documentação e identificação", "document", [
   ["Documento do veículo", "Disponível e dentro da validade.", "alta", false],
-  ["Identificação da frota", "Prefixo ou código visível.", "baixa"],
+  comObservacao(["Identificação da frota", "Prefixo ou código visível; anote-o.", "baixa"]),
   comObservacao(["Hodômetro / horímetro", "Funcionando; anote a leitura.", "media", false]),
 ]];
 
@@ -33,24 +33,24 @@ const cabine: CategoriaConteudo = ["CAB", "Cabine", "id-card", [
   ["Condições gerais da cabine", "Limpa, sem objetos soltos que possam rolar para os pedais.", "media", false],
   ["Banco do condutor", "Fixado e com regulagem funcionando.", "media", false],
   ["Cintos de segurança", "Todos os assentos; travam e recolhem.", "critica", false],
-  ["Painel de instrumentos", "Sem luz de alerta acesa após a partida.", "alta", false],
-  ["Ventilação e desembaçador", "Funcionando.", "baixa"],
+  semEvidencia(["Painel de instrumentos", "Sem luz de alerta acesa após a partida.", "alta", false]),
+  semEvidencia(["Ventilação e desembaçador", "Funcionando.", "baixa"]),
 ]];
 
 const externos: CategoriaConteudo = ["EXT", "Itens externos e carroceria", "car", [
   ["Para-brisa", "Sem trincas no campo de visão do condutor.", "alta", false],
-  ["Retrovisores", "Completos, ajustáveis e sem trincas.", "alta", false],
-  ["Limpadores e esguicho", "Palhetas em bom estado e esguicho funcionando.", "media", false],
+  semEvidencia(["Retrovisores", "Completos, ajustáveis e sem trincas.", "alta", false]),
+  semEvidencia(["Limpadores e esguicho", "Palhetas em bom estado e esguicho funcionando.", "media", false]),
   ["Portas e travas", "Abrem, fecham e travam corretamente.", "alta", false],
-  ["Carroceria", "Sem danos estruturais nem partes soltas.", "media", false],
+  comFoto(["Carroceria", "Sem danos estruturais nem partes soltas.", "media", false]),
 ]];
 
 const iluminacao: CategoriaConteudo = ["LUZ", "Iluminação e sinalização", "light", [
-  ["Faróis baixo e alto", "Acendem e estão alinhados.", "alta", false],
-  ["Lanternas e luz de freio", "Funcionando nos dois lados.", "alta", false],
-  ["Setas e pisca-alerta", "Funcionando nos dois lados.", "alta", false],
-  ["Luz e alarme de ré", "Acionam ao engatar a ré.", "alta"],
-  ["Buzina", "Funcionando.", "media", false],
+  semEvidencia(["Faróis baixo e alto", "Acendem e estão alinhados.", "alta", false]),
+  semEvidencia(["Lanternas e luz de freio", "Funcionando nos dois lados.", "alta", false]),
+  semEvidencia(["Setas e pisca-alerta", "Funcionando nos dois lados.", "alta", false]),
+  semEvidencia(["Luz e alarme de ré", "Acionam ao engatar a ré.", "alta"]),
+  semEvidencia(["Buzina", "Funcionando.", "media", false]),
 ]];
 
 const motor: CategoriaConteudo = ["MOT", "Motor, fluidos e bateria", "engine", [
@@ -95,15 +95,15 @@ const freioAr: ItemConteudo[] = [
 ];
 
 const inicioOperacao = (...extras: ItemConteudo[]): CategoriaConteudo => ["INI", "Condições para início da operação", "hard-hat", [
-  ["Volta ao redor do veículo", "Área livre de pessoas, objetos e obstáculos antes de mover.", "alta", false],
-  ["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false],
-  ["Condutor", "Habilitado para este veículo e em condição de dirigir.", "critica", false],
+  semEvidencia(["Volta ao redor do veículo", "Área livre de pessoas, objetos e obstáculos antes de mover.", "alta", false]),
+  semEvidencia(["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false]),
+  semEvidencia(["Condutor", "Habilitado para este veículo e em condição de dirigir.", "critica", false]),
   ...extras,
 ]];
 
 const comunicacao: ItemConteudo[] = [
-  ["Luz rotativa / giroflex", "Fixada e funcionando.", "alta"],
-  ["Rádio de comunicação", "Liga, transmite e recebe.", "alta"],
+  semEvidencia(["Luz rotativa / giroflex", "Fixada e funcionando.", "alta"]),
+  semEvidencia(["Rádio de comunicação", "Liga, transmite e recebe.", "alta"]),
 ];
 
 const acessoCabine: ItemConteudo = ["Degraus e corrimãos de acesso", "Firmes, limpos e sem partes soltas.", "media", false];
@@ -122,7 +122,7 @@ const estabilizadores: ItemConteudo[] = [
 ];
 
 const comandos: ItemConteudo[] = [
-  ["Comandos de operação", "Identificados e voltam sozinhos à posição neutra.", "critica", false],
+  semEvidencia(["Comandos de operação", "Identificados e voltam sozinhos à posição neutra.", "critica", false]),
   ["Parada de emergência", "Interrompe os movimentos ao ser acionada.", "critica"],
 ];
 
@@ -138,7 +138,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
     categorias: [
       documentacao, cabine, externos, iluminacao, motor, freios, pneus, seguranca,
       ["OPE", "Itens do veículo", "hard-hat", [
-        ["Tração 4x4", "Engata e desengata sem ruído ou alerta no painel.", "alta"],
+        semEvidencia(["Tração 4x4", "Engata e desengata sem ruído ou alerta no painel.", "alta"]),
         ...comunicacao,
         ["Haste de sinalização", "Fixada, com bandeira e luz funcionando.", "media"],
         ["Para-lamas e protetores", "Fixados, sem partes soltas.", "baixa"],
@@ -182,7 +182,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ["Portas de passageiros", "Abrem e fecham sem travar; vedação em bom estado.", "alta", false],
         ["Saídas de emergência", "Sinalizadas, desobstruídas e com dispositivo de abertura.", "critica"],
         ["Corredor, degraus e pega-mãos", "Livres, firmes e sem piso solto.", "alta", false],
-        ["Iluminação interna", "Funcionando.", "media"],
+        semEvidencia(["Iluminação interna", "Funcionando.", "media"]),
         ["Limpeza interna", "Sem lixo, objetos soltos ou piso escorregadio.", "baixa", false],
       ]],
       ["OPE", "Itens do veículo", "hard-hat", comunicacao],
@@ -198,7 +198,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
     fonte: null,
     categorias: [
       ["DOC", "Documentação e identificação", "document", [
-        ["Identificação do equipamento", "Prefixo ou código visível.", "baixa"],
+        comObservacao(["Identificação do equipamento", "Prefixo ou código visível; anote-o.", "baixa"]),
         comObservacao(["Horímetro", "Funcionando; anote a leitura.", "media", false]),
         ["Manual ou tabela de operação", "Disponível no equipamento.", "baixa"],
       ]],
@@ -207,8 +207,8 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ["Estrutura de proteção da cabine", "Sem trincas, amassados ou fixação solta.", "critica", false],
         ["Vidros", "Sem trincas que atrapalhem a visão.", "alta", false],
         ["Cinto de segurança", "Trava e recolhe.", "critica", false],
-        ["Painel e alarmes", "Sem alerta aceso após a partida.", "alta", false],
-        ["Retrovisores / câmeras", "Completos, limpos e ajustados.", "alta"],
+        semEvidencia(["Painel e alarmes", "Sem alerta aceso após a partida.", "alta", false]),
+        semEvidencia(["Retrovisores / câmeras", "Completos, limpos e ajustados.", "alta"]),
         ["Limpeza da cabine", "Sem objetos soltos junto aos comandos.", "media", false],
       ]],
       ["MOT", "Motor, fluidos e bateria", "engine", [
@@ -231,9 +231,9 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ["Pinos, buchas e travas", "Presentes, travados e lubrificados.", "alta", false],
       ]],
       ["LUZ", "Iluminação e sinalização", "light", [
-        ["Faróis de trabalho", "Funcionando.", "alta"],
-        ["Alarme de ré", "Aciona ao engatar a ré.", "alta", false],
-        ["Buzina", "Funcionando.", "alta", false],
+        semEvidencia(["Faróis de trabalho", "Funcionando.", "alta"]),
+        semEvidencia(["Alarme de ré", "Aciona ao engatar a ré.", "alta", false]),
+        semEvidencia(["Buzina", "Funcionando.", "alta", false]),
         ...comunicacao,
       ]],
       ["SEG", "Equipamentos de segurança", "shield", [
@@ -241,10 +241,10 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ["Freio de serviço e de estacionamento", "Seguram o equipamento parado em rampa.", "critica", false],
       ]],
       ["INI", "Condições para início da operação", "hard-hat", [
-        ["Volta ao redor do equipamento", "Área livre de pessoas e obstáculos antes de mover.", "alta", false],
-        ["Teste dos comandos", "Movimentos respondem sem atraso ou tranco antes de iniciar o trabalho.", "critica", false],
-        ["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false],
-        ["Operador", "Habilitado para este equipamento e em condição de operar.", "critica", false],
+        semEvidencia(["Volta ao redor do equipamento", "Área livre de pessoas e obstáculos antes de mover.", "alta", false]),
+        semEvidencia(["Teste dos comandos", "Movimentos respondem sem atraso ou tranco antes de iniciar o trabalho.", "critica", false]),
+        semEvidencia(["Pendências anteriores", "Não conformidades da última inspeção tratadas ou liberadas.", "alta", false]),
+        semEvidencia(["Operador", "Habilitado para este equipamento e em condição de operar.", "critica", false]),
       ]],
     ],
   },
@@ -293,7 +293,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ...comandos,
         ["Lança e extensões", "Sem trincas, amassados ou soldas abertas.", "critica", false],
         ["Gancho com trava", "Trava presente e fechando.", "critica", false],
-        ["Cabo de aço / corrente", "Sem fios rompidos, nós ou amassados.", "critica"],
+        comFoto(["Cabo de aço / corrente", "Sem fios rompidos, nós ou amassados.", "critica"]),
         ["Tabela de carga", "Fixada e legível junto aos comandos.", "alta", false],
         ["Acessórios de içamento", "Cintas, manilhas e estropos sem danos.", "alta"],
       ]],
@@ -314,7 +314,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ...estabilizadores,
         ...hidraulico,
         ...comandos,
-        ["Comandos do cesto e da base", "Os dois funcionam; a base consegue recolher o cesto.", "critica", false],
+        semEvidencia(["Comandos do cesto e da base", "Os dois funcionam; a base consegue recolher o cesto.", "critica", false]),
         ["Descida de emergência", "Funciona sem o motor ligado.", "critica"],
         ["Cesto", "Sem trincas; piso e portinhola em bom estado.", "critica", false],
         ["Ponto de ancoragem no cesto", "Presente e sem deformação.", "critica", false],
@@ -414,10 +414,10 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
       documentacao,
       ["VIA", "Preparação da viagem", "document", [
         ["Documentos da carga", "Notas e documentos de transporte a bordo.", "alta"],
-        ["Rota e paradas", "Trajeto, pontos de parada e descanso definidos.", "media"],
+        semEvidencia(["Rota e paradas", "Trajeto, pontos de parada e descanso definidos.", "media"]),
         ["Combustível", "Suficiente para o trecho até o próximo abastecimento.", "media", false],
-        ["Contatos de emergência", "Telefone da base e de socorro disponíveis ao condutor.", "media", false],
-        ["Comunicação", "Celular ou rádio carregado e funcionando.", "media", false],
+        semEvidencia(["Contatos de emergência", "Telefone da base e de socorro disponíveis ao condutor.", "media", false]),
+        semEvidencia(["Comunicação", "Celular ou rádio carregado e funcionando.", "media", false]),
       ]],
       cabine, externos, iluminacao, motor, com(freios, ...freioAr), pneus, seguranca,
       com(carga, ...amarracao),
@@ -455,7 +455,7 @@ export const MODELOS_BIBLIOTECA: ModeloConteudo[] = [
         ...comandos,
         ["Lança e extensões", "Sem trincas, amassados ou soldas abertas.", "critica", false],
         ["Gancho com trava", "Trava presente e fechando.", "critica", false],
-        ["Cabo de aço / corrente", "Sem fios rompidos, nós ou amassados.", "critica"],
+        comFoto(["Cabo de aço / corrente", "Sem fios rompidos, nós ou amassados.", "critica"]),
         ["Tabela de carga", "Fixada e legível junto aos comandos.", "alta", false],
         ["Acessórios de içamento", "Cintas, manilhas e estropos sem danos.", "alta"],
         ...guindautoObra,
