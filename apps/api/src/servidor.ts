@@ -12,9 +12,11 @@ try {
   console.log(`CheckVale ${cfg.versao}${cfg.revisao ? ` (${cfg.revisao})` : ""} subindo: banco ${cfg.databaseUrl ? "Postgres" : "PGlite"}, fotos ${cfg.uploadsBucket ? `no bucket ${cfg.uploadsBucket}` : `em ${cfg.uploadsDir}`}.`);
   const db = await abrirDb(cfg);
   await migrar(db);
-  // Conteúdo do produto (não é DEMO): todo ambiente recebe os modelos base que ainda não tem.
+  // Conteúdo do produto (não é DEMO): todo ambiente recebe os modelos base que ainda não tem
+  // e a versão nova dos que a curadoria ainda não assumiu.
   const biblioteca = await carregarBiblioteca(db, MODELOS_BIBLIOTECA);
   if (biblioteca.inseridos > 0) console.log(`Biblioteca: ${biblioteca.inseridos} modelo(s) base publicado(s).`);
+  if (biblioteca.atualizados > 0) console.log(`Biblioteca: ${biblioteca.atualizados} modelo(s) base com versão nova publicada.`);
   if (biblioteca.pulados.length > 0) console.warn(`Biblioteca: setor não encontrado, modelos pulados: ${biblioteca.pulados.join(", ")}.`);
   if (cfg.semearDemo && (await semearDemo(db, cfg.senhaDemo))) {
     console.log("Banco vazio: catálogo e usuários de demonstração criados (inspetor@checkvale.dev).");
