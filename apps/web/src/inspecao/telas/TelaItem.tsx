@@ -52,7 +52,11 @@ function FormularioItem(props: { itemId: string; inspecao: Inspecao; modelo: Mod
   const [status, setStatus] = useState<StatusResposta | undefined>(anterior?.status);
   const [observacao, setObservacao] = useState(anterior?.observacao ?? '');
   const [fotos, setFotos] = useState<string[]>(anterior?.evidenciaIds ?? []);
-  const [erro, setErro] = useState<string>();
+  // Resposta já gravada sem a evidência pedida (ex.: vinda de "Concluir"): avisa ao abrir.
+  const [erro, setErro] = useState<string | undefined>(() => {
+    const item = localizar(modelo, itemId)?.item;
+    return item && anterior ? (faltaEvidencia(item, anterior) ?? undefined) : undefined;
+  });
   const [salvando, setSalvando] = useState(false);
 
   const local = localizar(modelo, itemId);

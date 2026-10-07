@@ -119,8 +119,12 @@ export async function novaInspecao(placa = 'OWQ3A15', demo = false) {
 const foto = () => new Blob(['x'], { type: 'image/jpeg' });
 
 /** Responde direto pelo repositório da fundação (atalho de teste). */
+/** Responde cumprindo a evidência que o item pede (foto/observação), como o app exige. */
 export async function responder(inspecaoId: string, itemId: string, status: 'conforme' | 'nao_aplica') {
-  await repositorioInspecao.salvarResposta(inspecaoId, { itemId, status, observacao: null, naoConformidade: null, evidenciaIds: [] });
+  const ev = status === 'conforme' ? MODELO.categorias.flatMap((c) => c.itens).find((i) => i.id === itemId)?.evidencia : undefined;
+  const evidenciaIds = ev === 'foto' ? [(await repositorioInspecao.adicionarEvidencia(inspecaoId, itemId, foto())).id] : [];
+  const observacao = ev === 'observacao' ? 'Verificado.' : null;
+  await repositorioInspecao.salvarResposta(inspecaoId, { itemId, status, observacao, naoConformidade: null, evidenciaIds });
 }
 export async function responderNc(inspecaoId: string, itemId: string, descricao: string, criticidade: 'critica' | 'alta' | 'media' | 'baixa') {
   const e = await repositorioInspecao.adicionarEvidencia(inspecaoId, itemId, foto());

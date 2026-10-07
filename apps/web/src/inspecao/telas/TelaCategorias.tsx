@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import type { Inspecao, ModeloChecklist, ResumoCategoria } from '@checkvale/shared';
+import { faltaEvidencia, type Inspecao, type ModeloChecklist, type ResumoCategoria } from '@checkvale/shared';
 import { useSituacaoSyncInspecao } from '../../dados/estadoSync';
 import { useChecklistDaInspecao } from '../../dados/ganchos';
 import { repositorioInspecao } from '../../dados/repositorio';
@@ -24,6 +24,20 @@ export function proximoPendente(modelo: ModeloChecklist, v: Inspecao, categoriaI
     if (categoriaId && c.id !== categoriaId) continue;
     const item = c.itens.find((i) => !respondidos.has(i.id));
     if (item) return item;
+  }
+  return undefined;
+}
+
+/**
+ * Primeiro item respondido sem a evidência que ele pede. A API recusa concluir
+ * nesse caso, e a recusa só chegaria na sincronização, com a inspeção já fechada
+ * no aparelho: por isso o app confere antes de concluir.
+ */
+export function pendenteDeEvidencia(modelo: ModeloChecklist, v: Inspecao) {
+  const respostas = new Map(v.respostas.map((r) => [r.itemId, r]));
+  for (const item of modelo.categorias.flatMap((c) => c.itens)) {
+    const r = respostas.get(item.id);
+    if (r && faltaEvidencia(item, r)) return item;
   }
   return undefined;
 }
@@ -67,6 +81,11 @@ export function TelaCategorias() {
       return;
     }
     if (concluindo) return;
+    const semEvidencia = pendenteDeEvidencia(modelo, v);
+    if (semEvidencia) {
+      navegar(rotas.item(v.id, semEvidencia.id));
+      return;
+    }
     setConcluindo(true);
     try {
       // Sem navegar() aqui: ao gravar 'concluida' esta tela se redireciona sozinha

@@ -154,6 +154,18 @@ describe('fluxo da inspeção (telas 5–12) na base real', () => {
     await screen.findByRole('heading', { name: 'Verificação concluída!' }, ESPERA);
     expect((await repositorioInspecao.obter(v.id))!.status).toBe('concluida');
   });
+  it('concluir com item sem a evidência pedida leva ao item em vez de concluir', async () => {
+    const v = await novaInspecao();
+    for (const i of ITENS_LEVE) await responder(v.id, i.id, 'conforme');
+    // Resposta gravada sem a foto que o item pede (ex.: app antigo, antes do campo existir).
+    const crlv = item('CRLV em dia');
+    await repositorioInspecao.salvarResposta(v.id, { itemId: crlv.id, status: 'conforme', observacao: null, naoConformidade: null, evidenciaIds: [] });
+    abrir(rotasInspecao.categorias(v.id));
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir verificação' }, ESPERA));
+    await screen.findByRole('heading', { name: 'CRLV em dia' }, ESPERA);
+    expect(screen.getByRole('alert').textContent).toMatch('foto');
+    expect((await repositorioInspecao.obter(v.id))!.status).toBe('em_andamento');
+  });
 });
 
 describe('núcleo configurável (regras reais da fundação)', () => {
