@@ -2,6 +2,7 @@ import type {
   Atributos,
   Inspecao,
   CondicaoAtributo,
+  OperadorRegra,
   DefinicaoAtributo,
   ModeloChecklist,
   RegraAplicabilidade,
@@ -126,3 +127,50 @@ export function validarAtributos(defs: readonly DefinicaoAtributo[], tipoVeiculo
   }
   return erros;
 }
+
+// ---------------------------------------------------------------------------
+// Ambiguidade entre modelos: o inspetor nunca escolhe o checklist, então dois
+// modelos publicados não podem empatar para o mesmo veículo/área/atividade.
+// ---------------------------------------------------------------------------
+
+const num = (v: ValorAtributo | null) => (v === null || String(v).trim() === "" ? NaN : Number(v));
+
+/** As duas condições (mesmo atributo) nunca valem juntas? Na dúvida, responde false (podem valer). */
+function condicoesExcludentes(a: CondicaoAtributo, b: CondicaoAtributo): boolean {
+  if (a.valor === null || b.valor === null) return false;
+  const [va, vb] = [norm(a.valor), norm(b.valor)];
+  const par = (x: OperadorRegra, y: OperadorRegra) => (a.operador === x && b.operador === y) || (a.operador === y && b.operador === x);
+  if (a.operador === "igual" && b.operador === "igual") return va !== vb;
+  if (par("igual", "diferente")) return va === vb;
+  const igual = a.operador === "igual" ? a : b.operador === "igual" ? b : null;
+  const outra = igual === a ? b : a;
+  if (igual && (outra.operador === "maior" || outra.operador === "menor")) {
+    const [x, lim] = [num(igual.valor), num(outra.valor)];
+    if (Number.isNaN(lim)) return false;
+    if (Number.isNaN(x)) return true; // "maior/menor" só vale para número
+    return outra.operador === "maior" ? x <= lim : x >= lim;
+  }
+  if (par("maior", "menor")) {
+    const maior = a.operador === "maior" ? num(a.valor) : num(b.valor);
+    const menor = a.operador === "menor" ? num(a.valor) : num(b.valor);
+    return !Number.isNaN(maior) && !Number.isNaN(menor) && menor <= maior + Number.EPSILON;
+  }
+  return false;
+}
+
+/**
+ * Existe veículo/área/atividade em que as duas regras valem COM a mesma
+ * especificidade? Nesse caso escolherModelo empataria e o checklist do
+ * inspetor dependeria da sorte. Regra mais específica que a outra não é
+ * ambígua: ela vence onde vale (é assim que se faz exceção).
+ */
+export function regrasAmbiguas(a: RegraAplicabilidade, b: RegraAplicabilidade): boolean {
+  if (especificidade(a) !== especificidade(b)) return false;
+  const cruzam = (x: string[], y: string[]) => x.length === 0 || y.length === 0 || x.some((v) => y.includes(v));
+  if (!cruzam(a.tipoVeiculoIds, b.tipoVeiculoIds) || !cruzam(a.areaIds, b.areaIds) || !cruzam(a.atividadeIds, b.atividadeIds)) return false;
+  return !a.atributos.some((ca) => b.atributos.some((cb) => ca.atributo === cb.atributo && condicoesExcludentes(ca, cb)));
+}
+
+/** Modelos publicados (de OUTRO id) que ficariam ambíguos com esta regra. */
+export const modelosAmbiguos = <M extends Pick<ModeloChecklist, "id" | "aplicavel">>(id: string, regra: RegraAplicabilidade, publicados: readonly M[]): M[] =>
+  publicados.filter((m) => m.id !== id && regrasAmbiguas(regra, m.aplicavel));

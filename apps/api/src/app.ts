@@ -8,6 +8,7 @@ import { pode, type Papel, type Permissao } from "@checkvale/shared";
 import type { Armazenamento } from "./armazenamento";
 import type { Config } from "./config";
 import type { Db } from "./db";
+import { rotasBiblioteca } from "./rotas/biblioteca";
 import { rotasAdmin } from "./rotas/admin";
 import { rotasAuth } from "./rotas/auth";
 import { rotasCatalogo } from "./rotas/catalogo";
@@ -112,6 +113,7 @@ export async function criarApp(cfg: Config, db: Db, armazenamento: Armazenamento
     await privado.register(rotasSync);
     await privado.register(rotasEvidencias);
     await privado.register(rotasAdmin, { prefix: "/admin" });
+    await privado.register(rotasBiblioteca, { prefix: "/biblioteca" });
   }, { prefix: "/api" });
 
   if (cfg.webDir) await servirWeb(app, cfg.webDir);
