@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastif
 import { z } from "zod";
 import {
   aplicarRegras,
+  modelosAmbiguos,
   AreaEntrada,
   AtividadeEntrada,
   AtributoEntrada,
@@ -299,6 +300,10 @@ function rotasModelos(app: FastifyInstance) {
     const versao = await obterVersao(app.db, id, v);
     if (versao.status !== "rascunho") throw new ErroHttp(409, "versao_publicada", "Só rascunho pode ser publicado.");
     const erros = validarParaPublicar(versao, (await carregarAtributos(app.db)).filter((a) => a.ativo));
+    // O inspetor nunca escolhe o checklist: dois publicados não podem empatar no mesmo escopo.
+    const publicados = (await app.db.query(`SELECT * FROM modelos_checklist WHERE status = 'publicada'`)).rows.map(modeloDeLinha);
+    for (const m of modelosAmbiguos(id, versao.aplicavel, publicados))
+      erros.push(`Aplicabilidade ambígua com o checklist publicado "${m.nome}": os dois valeriam para os mesmos veículos. Restrinja onde este vale (tipo de veículo, área, atividade ou atributo).`);
     if (erros.length) throw new ErroHttp(422, "nao_publicavel", "A versão tem problemas que impedem a publicação.", erros);
     await app.db.transacao(async (tx) => {
       // A anterior fica arquivada: inspeções em andamento nela continuam válidas.

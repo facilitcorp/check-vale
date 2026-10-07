@@ -29,11 +29,15 @@ Modelo da biblioteca **não pode** ter regra de aplicabilidade (publicação rec
 - `GET  /api/biblioteca/modelos?setorId=` → lista (nome, resumo, selo, nº de categorias/itens)
 - `GET  /api/biblioteca/modelos/:id` → versão publicada completa (prévia)
 - `POST /api/biblioteca/modelos/:id/adotar` `{ modo: "usar" | "personalizar", nome? }` →
-  - `usar`: cria modelo da empresa já **publicado** (passa pelas mesmas validações de publicação). Se já houver checklist publicado valendo para todos os veículos, responde **409 `conflito_aplicabilidade`**: dois modelos gerais concorrem e o inspetor receberia um ou outro sem ninguém escolher — a empresa usa "Personalizar" e define onde o modelo vale;
-  - `personalizar`: cria **rascunho** e devolve o id para abrir no editor de modelos.
+  - `usar`: se **nenhum** checklist publicado valer para o mesmo escopo, cria o modelo da empresa já **publicado**. Se houver conflito, cria **rascunho** e devolve `conflitos: [{id, nome}]`: a tela avisa e leva o admin a definir a aplicabilidade (tipo de veículo, área, atividade, atributos). Nada é arquivado nem substituído; o checklist atual segue valendo até o novo ser publicado;
+  - `personalizar`: sempre **rascunho**, devolve o id para abrir no editor de modelos.
 - Cadastro de setores e curadoria: `GET/POST/PATCH /api/admin/setores`, `GET/POST/PATCH /api/admin/biblioteca/modelos` (+ publicar versão, igual ao núcleo).
 - Tudo auditado.
 
 ## Telas (web)
 
 `/admin/biblioteca` (setores em cartões) → `/admin/biblioteca/:setorId` (modelos com selo) → `/admin/biblioteca/modelo/:id` (prévia por categoria; botões Usar / Personalizar) · "Criar do zero" leva ao editor atual. Cadastro de setores em `/admin/setores`.
+
+## Ambiguidade de aplicação (vale para todo checklist da empresa)
+
+O inspetor **nunca** escolhe o checklist: o app pega o mais específico (`escolherModelo`). Por isso a publicação (`POST /api/admin/modelos/:id/versoes/:v/publicar`) é recusada com 422 quando outro checklist publicado valeria para o mesmo veículo com a **mesma especificidade** (`regrasAmbiguas` em `packages/shared/src/regras.ts`). Regra mais específica que a outra não é ambígua: é exceção e vence onde vale. Condições de atributo claramente excludentes (`igual` a valores diferentes, `igual`×`diferente` do mesmo valor, faixas `maior`/`menor` sem interseção) separam; na dúvida, o motor considera que podem valer juntas.

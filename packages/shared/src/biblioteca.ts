@@ -86,7 +86,7 @@ export type SetorEntrada = z.infer<typeof SetorEntrada>;
 export const SetorComContagem = Setor.extend({ totalModelos: z.number().int() });
 export type SetorComContagem = z.infer<typeof SetorComContagem>;
 
-/** usar = cria modelo da empresa já publicado; personalizar = cria rascunho para o editor. */
+/** usar = publica direto se não houver conflito (senão, rascunho); personalizar = sempre rascunho. */
 export const AdotarModelo = z.object({
   modo: z.enum(["usar", "personalizar"]),
   nome: z.string().trim().min(1).optional(),
@@ -97,6 +97,12 @@ export const ResultadoAdocao = z.object({
   modeloId: Id,
   versao: z.number().int().positive(),
   status: StatusVersao,
+  /**
+   * Checklists publicados que já valem para o mesmo escopo. Se houver algum,
+   * "usar" NÃO publica: devolve rascunho para o admin definir a aplicabilidade.
+   * Nada é arquivado ou substituído; o atual segue valendo.
+   */
+  conflitos: z.array(z.object({ id: Id, nome: z.string() })),
 });
 export type ResultadoAdocao = z.infer<typeof ResultadoAdocao>;
 

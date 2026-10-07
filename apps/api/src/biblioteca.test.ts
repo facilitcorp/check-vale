@@ -96,17 +96,34 @@ describe("biblioteca", () => {
     expect(rows[0]).toEqual({ biblioteca_modelo_id: bibliotecaId, biblioteca_versao: 1 });
   });
 
-  it("usar não publica por cima de outro checklist geral já publicado", async () => {
+  it("usar com conflito: vira rascunho, avisa o conflito e o checklist atual segue publicado", async () => {
+    const antes = (await db.query(`SELECT id, nome FROM modelos_checklist WHERE status = 'publicada'`)).rows;
     const r = await req("admin", "POST", `/api/biblioteca/modelos/${bibliotecaId}/adotar`, { modo: "usar" });
-    expect(r.statusCode, r.body).toBe(409);
-    expect(r.json().erro).toBe("conflito_aplicabilidade");
+    expect(r.statusCode, r.body).toBe(201);
+    expect(r.json().status).toBe("rascunho");
+    expect(r.json().conflitos.map((c: { id: string }) => c.id).sort()).toEqual(antes.map((m) => m.id).sort());
+    expect((await db.query(`SELECT id FROM modelos_checklist WHERE status = 'publicada'`)).rows).toHaveLength(antes.length);
+
+    // Publicar sem definir a aplicabilidade é recusado; o editor mostra o motivo.
+    const url = `/api/admin/modelos/${r.json().modeloId}/versoes/1`;
+    const recusa = await req("admin", "POST", `${url}/publicar`);
+    expect(recusa.statusCode).toBe(422);
+    expect(recusa.json().erros.join(" ")).toMatch(/Aplicabilidade ambígua com o checklist publicado/);
+
+    // Restringindo a um tipo de veículo, deixa de empatar e publica; o anterior continua publicado.
+    const rascunho: VersaoModelo = (await req("admin", "GET", url)).json();
+    const tipo = (await db.query(`SELECT id FROM tipos_veiculo LIMIT 1`)).rows[0]!.id as string;
+    await req("admin", "PUT", url, { nome: rascunho.nome, aplicavel: { ...SEM_RESTRICAO, tipoVeiculoIds: [tipo] }, categorias: rascunho.categorias });
+    const ok = await req("admin", "POST", `${url}/publicar`);
+    expect(ok.statusCode, ok.body).toBe(200);
+    for (const m of antes) expect((await db.query(`SELECT status FROM modelos_checklist WHERE id = $1 AND status = 'publicada'`, [m.id])).rows).toHaveLength(1);
   });
 
   it("usar publica direto quando não há checklist geral concorrente", async () => {
     await db.query(`UPDATE modelos_checklist SET status = 'arquivada' WHERE status = 'publicada'`);
     const r = await req("admin", "POST", `/api/biblioteca/modelos/${bibliotecaId}/adotar`, { modo: "usar", nome: "Pré-uso (nosso)" });
     expect(r.statusCode, r.body).toBe(201);
-    expect(r.json().status).toBe("publicada");
+    expect(r.json()).toMatchObject({ status: "publicada", conflitos: [] });
     const catalogo = (await req("inspetor", "GET", "/api/catalogo")).json();
     expect(catalogo.modelos.map((m: { nome: string }) => m.nome)).toContain("Pré-uso (nosso)");
   });

@@ -4,9 +4,9 @@ import { z } from "zod";
 import {
   AdotarModelo,
   copiarCategorias,
-  especificidade,
   Id,
   ModeloBibliotecaEntrada,
+  modelosAmbiguos,
   SEM_RESTRICAO,
   validarModeloBiblioteca,
   validarParaPublicar,
@@ -100,7 +100,7 @@ export const rotasBiblioteca: FastifyPluginAsync = async (app) => {
   app.get("/modelos/:id", { onRequest: L }, async (req) => publico(await publicadaAtual(app.db, IdParam.parse(req.params).id)));
 
   /**
-   * usar → checklist da empresa já publicado; personalizar → rascunho para o editor.
+   * usar → publica direto se nada conflitar; personalizar (ou usar com conflito) → rascunho para o editor.
    * Permissão conferida por modo: personalizar = config:editar; usar = também modelo:publicar.
    */
   app.post("/modelos/:id/adotar", { onRequest: app.exigir("config:editar") }, async (req, rep): Promise<ResultadoAdocao> => {
@@ -110,28 +110,26 @@ export const rotasBiblioteca: FastifyPluginAsync = async (app) => {
     const origem = await publicadaAtual(app.db, id);
     const novo = { id: randomUUID(), nome: nome ?? origem.nome, versao: 1, aplicavel: SEM_RESTRICAO, categorias: copiarCategorias(origem.categorias) };
 
-    if (modo === "usar") {
-      // Modelo sem restrição concorre com outro sem restrição e o inspetor passaria a
-      // receber um ou outro sem ninguém escolher. Nesse caso, a empresa personaliza.
-      const { rows } = await app.db.query(`SELECT * FROM modelos_checklist WHERE status = 'publicada'`);
-      const concorrente = rows.map(modeloDeLinha).find((m) => especificidade(m.aplicavel) === 0);
-      if (concorrente)
-        throw new ErroHttp(409, "conflito_aplicabilidade",
-          `Já existe o checklist publicado "${concorrente.nome}" valendo para todos os veículos. Use "Personalizar" para definir onde este modelo vale antes de publicar.`);
+    // Conflito: outro checklist publicado já vale para o mesmo escopo. "usar" vira
+    // rascunho e o admin define a aplicabilidade; o atual segue valendo, nada é arquivado.
+    const publicados = (await app.db.query(`SELECT * FROM modelos_checklist WHERE status = 'publicada'`)).rows.map(modeloDeLinha);
+    const conflitos = modelosAmbiguos(novo.id, novo.aplicavel, publicados).map((m) => ({ id: m.id, nome: m.nome }));
+    const publicar = modo === "usar" && conflitos.length === 0;
+    if (publicar) {
       const erros = validarParaPublicar(novo, []);
       if (erros.length) throw new ErroHttp(422, "nao_publicavel", "O modelo tem problemas que impedem a publicação.", erros);
     }
 
-    const status = modo === "usar" ? "publicada" : "rascunho";
+    const status = publicar ? "publicada" : "rascunho";
     await app.db.query(
       `INSERT INTO modelos_checklist (id, versao, nome, aplicavel, categorias, status, publicada_em, publicada_por, biblioteca_modelo_id, biblioteca_versao)
        VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [novo.id, novo.nome, json(novo.aplicavel), json(novo.categorias), status,
-        modo === "usar" ? new Date().toISOString() : null, modo === "usar" ? req.user.sub : null, origem.id, origem.versao],
+        publicar ? new Date().toISOString() : null, publicar ? req.user.sub : null, origem.id, origem.versao],
     );
-    await app.auditar(req, `biblioteca.adotar.${modo}`, "modelo", novo.id, { bibliotecaModeloId: origem.id, bibliotecaVersao: origem.versao });
+    await app.auditar(req, `biblioteca.adotar.${modo}`, "modelo", novo.id, { bibliotecaModeloId: origem.id, bibliotecaVersao: origem.versao, status, conflitos });
     rep.status(201);
-    return { modeloId: novo.id, versao: 1, status };
+    return { modeloId: novo.id, versao: 1, status, conflitos };
   });
 };
 
