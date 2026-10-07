@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CategoriaChecklist, Id, StatusVersao } from "./dominio";
+import { CategoriaChecklist, DataHora, Id, SEM_RESTRICAO, StatusVersao, type RegraAplicabilidade } from "./dominio";
 
 /**
  * Biblioteca de checklists por setor (docs/BIBLIOTECA.md).
@@ -31,21 +31,41 @@ export const SELO_ORIGEM: Record<OrigemBiblioteca, string> = {
   referencia: "Modelo de referência",
 };
 
-export const ModeloBiblioteca = z
-  .object({
-    id: Id,
-    versao: z.number().int().positive(),
-    setorIds: z.array(Id).min(1),
-    nome: z.string().trim().min(1),
-    resumo: z.string(),
-    origem: OrigemBiblioteca,
-    /** Obrigatória quando origem = referencia. */
-    fonte: z.string().trim().min(1).nullable(),
-    status: StatusVersao,
-    categorias: z.array(CategoriaChecklist),
-  })
-  .refine((m) => m.origem !== "referencia" || !!m.fonte, { message: "Modelo de referência precisa citar a fonte", path: ["fonte"] });
+const CamposModeloBiblioteca = z.object({
+  setorIds: z.array(Id).min(1, "Escolha ao menos um setor."),
+  nome: z.string().trim().min(1),
+  resumo: z.string(),
+  origem: OrigemBiblioteca,
+  /** Obrigatória quando origem = referencia. */
+  fonte: z.string().trim().min(1).nullable(),
+  /** Mesmo formato do núcleo, mas SEM regras: tipos, áreas e atributos são da empresa. */
+  categorias: z.array(CategoriaChecklist),
+});
+const exigeFonte = (m: { origem: OrigemBiblioteca; fonte: string | null }) => m.origem !== "referencia" || !!m.fonte;
+const SEM_FONTE = "Modelo de referência precisa citar a fonte.";
+// Função, não objeto: o zod normaliza o objeto de parâmetros que recebe.
+const ERRO_FONTE = () => ({ message: SEM_FONTE, path: ["fonte"] });
+
+/** Entrada da curadoria (criar/editar rascunho da biblioteca). */
+export const ModeloBibliotecaEntrada = CamposModeloBiblioteca.refine(exigeFonte, ERRO_FONTE());
+export type ModeloBibliotecaEntrada = z.infer<typeof ModeloBibliotecaEntrada>;
+
+export const ModeloBiblioteca = CamposModeloBiblioteca.extend({
+  id: Id,
+  versao: z.number().int().positive(),
+  status: StatusVersao,
+}).refine(exigeFonte, ERRO_FONTE());
 export type ModeloBiblioteca = z.infer<typeof ModeloBiblioteca>;
+
+/** Versão vista pela curadoria (inclui rascunhos e datas). */
+export const VersaoModeloBiblioteca = CamposModeloBiblioteca.extend({
+  id: Id,
+  versao: z.number().int().positive(),
+  status: StatusVersao,
+  criadaEm: DataHora,
+  publicadaEm: DataHora.nullable(),
+});
+export type VersaoModeloBiblioteca = z.infer<typeof VersaoModeloBiblioteca>;
 
 /** Linha da lista de modelos de um setor (sem o conteúdo). */
 export const ResumoModeloBiblioteca = z.object({
@@ -59,6 +79,9 @@ export const ResumoModeloBiblioteca = z.object({
   totalItens: z.number().int(),
 });
 export type ResumoModeloBiblioteca = z.infer<typeof ResumoModeloBiblioteca>;
+
+export const SetorEntrada = Setor.omit({ id: true });
+export type SetorEntrada = z.infer<typeof SetorEntrada>;
 
 export const SetorComContagem = Setor.extend({ totalModelos: z.number().int() });
 export type SetorComContagem = z.infer<typeof SetorComContagem>;
@@ -76,3 +99,45 @@ export const ResultadoAdocao = z.object({
   status: StatusVersao,
 });
 export type ResultadoAdocao = z.infer<typeof ResultadoAdocao>;
+
+const regraVazia = (r: RegraAplicabilidade) =>
+  r.tipoVeiculoIds.length === 0 && r.areaIds.length === 0 && r.atividadeIds.length === 0 && r.atributos.length === 0;
+
+/**
+ * Pode publicar na biblioteca? Mesmas exigências do núcleo (categorias com itens,
+ * códigos únicos) e nenhuma regra de aplicabilidade: ids de tipo/área/atributo
+ * são de cada empresa e não existem na biblioteca.
+ */
+export function validarModeloBiblioteca(m: Pick<ModeloBiblioteca, "categorias" | "origem" | "fonte" | "setorIds">): string[] {
+  const erros: string[] = [];
+  if (m.setorIds.length === 0) erros.push("Escolha ao menos um setor.");
+  if (!exigeFonte(m)) erros.push(SEM_FONTE);
+  if (m.categorias.length === 0) erros.push("O modelo não tem categorias.");
+  const codCat = new Set<string>();
+  const codItem = new Set<string>();
+  for (const c of m.categorias) {
+    if (codCat.has(c.codigo)) erros.push(`Código de categoria repetido: ${c.codigo}.`);
+    codCat.add(c.codigo);
+    if (c.itens.length === 0) erros.push(`Categoria "${c.nome}" sem itens.`);
+    if (!regraVazia(c.aplicavel)) erros.push(`Categoria "${c.nome}": modelo da biblioteca não leva regra de aplicabilidade.`);
+    for (const i of c.itens) {
+      if (codItem.has(i.codigo)) erros.push(`Código de item repetido: ${i.codigo}.`);
+      codItem.add(i.codigo);
+      if (!regraVazia(i.aplicavel)) erros.push(`Item "${i.titulo}": modelo da biblioteca não leva regra de aplicabilidade.`);
+    }
+  }
+  return erros;
+}
+
+/**
+ * Conteúdo da cópia que a empresa recebe: ids novos (cada adoção é um checklist
+ * independente), códigos mantidos (rastreio) e regras vazias para a empresa ajustar.
+ */
+export function copiarCategorias(categorias: readonly CategoriaChecklist[], novoId: () => string = () => globalThis.crypto.randomUUID()): CategoriaChecklist[] {
+  return categorias.map((c) => ({
+    ...c,
+    id: novoId(),
+    aplicavel: SEM_RESTRICAO,
+    itens: c.itens.map((i) => ({ ...i, id: novoId(), aplicavel: SEM_RESTRICAO })),
+  }));
+}

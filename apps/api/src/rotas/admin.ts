@@ -11,6 +11,7 @@ import {
   NovoModeloEntrada,
   RascunhoEntrada,
   SEM_RESTRICAO,
+  SetorEntrada,
   TipoVeiculoEntrada,
   UnidadeEntrada,
   UsuarioEntrada,
@@ -25,6 +26,7 @@ import {
 } from "@checkvale/shared";
 import { ErroHttp } from "../app";
 import type { Db } from "../db";
+import { rotasCuradoria, setorDeLinha } from "./biblioteca";
 import {
   areaDeLinha,
   atividadeDeLinha,
@@ -158,8 +160,14 @@ export const rotasAdmin: FastifyPluginAsync = async (app) => {
       if (erros.length) throw new ErroHttp(400, "atributos_invalidos", erros.join(" "), erros);
     },
   }, L, E);
+  registrarCadastro(app, {
+    caminho: "setores", tabela: "setores", entidade: "setor", entrada: SetorEntrada, deLinha: setorDeLinha, ordem: "ordem, nome",
+    colunas: { nome: { col: "nome" }, descricao: { col: "descricao" }, icone: { col: "icone" }, ordem: { col: "ordem" }, ativo: { col: "ativo" } },
+  }, "biblioteca:ler", "biblioteca:editar");
+
   rotasUsuarios(app);
   rotasModelos(app);
+  rotasCuradoria(app);
 };
 
 // ---------------------------------------------------------------------------

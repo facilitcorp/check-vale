@@ -1,4 +1,4 @@
-# Biblioteca de checklists por setor (marco 2 — rascunho de contrato)
+# Biblioteca de checklists por setor (marco 2)
 
 Fluxo: **Biblioteca → setor → modelo da biblioteca → prévia do que será verificado → (a) usar modelo | (b) personalizar para minha empresa | (c) criar do zero.**
 
@@ -20,7 +20,7 @@ Fluxo: **Biblioteca → setor → modelo da biblioteca → prévia do que será 
 | `biblioteca_modelos` | `id uuid`, `versao int`, `setor_ids uuid[]` (um modelo pode servir a mais de um setor), `nome`, `resumo`, `origem` CHECK (`base_checkvale`,`referencia`), `fonte text null`, `categorias jsonb` (mesmo formato de `CategoriaChecklist`), `status` (`rascunho`,`publicada`,`arquivada`), PK (`id`,`versao`) |
 | `modelos_checklist` (+colunas) | `biblioteca_modelo_id uuid null`, `biblioteca_versao int null` |
 
-Itens copiados da biblioteca saem **sem regra de aplicabilidade** (tipos de veículo/áreas/atividades são da empresa); o ADMIN ajusta na personalização.
+Modelo da biblioteca **não pode** ter regra de aplicabilidade (publicação recusada com 422). Itens copiados saem com **ids novos** (cada adoção é independente), os mesmos códigos e regras vazias (tipos de veículo/áreas/atividades são da empresa); o ADMIN ajusta na personalização.
 
 ## API (permissões novas em `permissoes.ts`)
 
@@ -29,7 +29,7 @@ Itens copiados da biblioteca saem **sem regra de aplicabilidade** (tipos de veí
 - `GET  /api/biblioteca/modelos?setorId=` → lista (nome, resumo, selo, nº de categorias/itens)
 - `GET  /api/biblioteca/modelos/:id` → versão publicada completa (prévia)
 - `POST /api/biblioteca/modelos/:id/adotar` `{ modo: "usar" | "personalizar", nome? }` →
-  - `usar`: cria modelo da empresa já **publicado** (passa pelas mesmas validações de publicação);
+  - `usar`: cria modelo da empresa já **publicado** (passa pelas mesmas validações de publicação). Se já houver checklist publicado valendo para todos os veículos, responde **409 `conflito_aplicabilidade`**: dois modelos gerais concorrem e o inspetor receberia um ou outro sem ninguém escolher — a empresa usa "Personalizar" e define onde o modelo vale;
   - `personalizar`: cria **rascunho** e devolve o id para abrir no editor de modelos.
 - Cadastro de setores e curadoria: `GET/POST/PATCH /api/admin/setores`, `GET/POST/PATCH /api/admin/biblioteca/modelos` (+ publicar versão, igual ao núcleo).
 - Tudo auditado.

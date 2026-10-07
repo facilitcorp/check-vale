@@ -211,4 +211,55 @@ UPDATE inspecoes i SET tipo_veiculo_id = v.tipo_veiculo_id FROM veiculos v WHERE
 ALTER TABLE inspecoes ALTER COLUMN tipo_veiculo_id SET NOT NULL;
 `,
   ],
+  [
+    "003_biblioteca",
+    `
+-- Biblioteca de checklists por setor (docs/BIBLIOTECA.md). Setor é cadastro, sem limite de quantidade.
+CREATE TABLE setores (
+  id uuid PRIMARY KEY,
+  nome text NOT NULL,
+  descricao text NOT NULL DEFAULT '',
+  icone text NOT NULL DEFAULT 'geral',
+  ordem int NOT NULL DEFAULT 0,
+  ativo boolean NOT NULL DEFAULT true,
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+
+-- Catálogo. Não existe origem "oficial": base_checkvale ou referência (com fonte).
+CREATE TABLE biblioteca_modelos (
+  id uuid NOT NULL,
+  versao int NOT NULL,
+  setor_ids uuid[] NOT NULL,
+  nome text NOT NULL,
+  resumo text NOT NULL DEFAULT '',
+  origem text NOT NULL CHECK (origem IN ('base_checkvale','referencia')),
+  fonte text,
+  categorias jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho','publicada','arquivada')),
+  criado_em timestamptz NOT NULL DEFAULT now(),
+  publicada_em timestamptz,
+  publicada_por uuid REFERENCES usuarios(id),
+  PRIMARY KEY (id, versao),
+  CHECK (origem <> 'referencia' OR coalesce(trim(fonte), '') <> '')
+);
+CREATE UNIQUE INDEX biblioteca_um_rascunho ON biblioteca_modelos (id) WHERE status = 'rascunho';
+
+-- Checklist da empresa guarda de onde foi copiado.
+ALTER TABLE modelos_checklist ADD COLUMN biblioteca_modelo_id uuid;
+ALTER TABLE modelos_checklist ADD COLUMN biblioteca_versao int;
+
+-- Taxonomia inicial. Administrável em /admin/setores; ícone é chave desenhada pela tela.
+INSERT INTO setores (id, nome, icone, ordem) VALUES
+  (gen_random_uuid(), 'Mineração', 'picareta', 10),
+  (gen_random_uuid(), 'Energia elétrica', 'raio', 20),
+  (gen_random_uuid(), 'Transporte rodoviário e logística', 'caminhao', 30),
+  (gen_random_uuid(), 'Construção civil e infraestrutura', 'predio', 40),
+  (gen_random_uuid(), 'Óleo, gás e petroquímica', 'chama', 50),
+  (gen_random_uuid(), 'Agronegócio', 'trator', 60),
+  (gen_random_uuid(), 'Portos e terminais', 'navio', 70),
+  (gen_random_uuid(), 'Transporte de passageiros', 'onibus', 80),
+  (gen_random_uuid(), 'Indústria e siderurgia', 'fabrica', 90),
+  (gen_random_uuid(), 'Saneamento, resíduos e serviços ambientais', 'reciclagem', 100);
+`,
+  ],
 ];
