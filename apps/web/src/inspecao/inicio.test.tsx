@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { banco } from '../dados/banco';
 import { sincronizar } from '../dados/sincronizacao';
@@ -99,7 +99,11 @@ describe('tela inicial do inspetor', () => {
     await banco.fila.add({ estado: 'rejeitada', op: (await banco.fila.toArray())[0]!.op, alvo: `inspecao:${v.id}`, erro: 'Placa ABC1D23 já cadastrada.' });
     abrir();
     await screen.findByText('Placa ABC1D23 já cadastrada.', undefined, ESPERA);
-    screen.getByText('Procure o gestor da operação.');
+    // Diz QUAL verificação foi recusada, que nada se perdeu e deixa mandar de novo.
+    await screen.findByText(/^Verificação ABC1D23, iniciada em/, undefined, ESPERA);
+    screen.getByText(/Os dados continuam salvos neste aparelho/);
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar enviar de novo' }));
+    await waitFor(async () => expect(await banco.fila.where('estado').equals('rejeitada').count()).toBe(0));
   });
 
   it('inspeção inexistente: mostra não encontrada', async () => {

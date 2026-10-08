@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { LogOut, Settings } from 'lucide-react';
 import { pode, type Inspecao } from '@checkvale/shared';
 import { Aviso } from '../../componentes/ui';
-import { banco } from '../../dados/banco';
+import { banco, type OpFila } from '../../dados/banco';
+import { reenviarRejeitadas } from '../../dados/fila';
 import { useSituacaoSyncGeral, useSituacaoSyncInspecao, type SituacaoSync } from '../../dados/estadoSync';
 import { useCatalogo, useChecklistDaInspecao } from '../../dados/ganchos';
 import { repositorioInspecao } from '../../dados/repositorio';
@@ -46,15 +47,7 @@ export function TelaInicio() {
       }
     >
       <h1>Verificações</h1>
-      {!!rejeitadas?.length && (
-        <div className="secao">
-          <Aviso tom="erro">
-            <p className="font-semibold">{rejeitadas.length} registro(s) não aceito(s) pelo servidor:</p>
-            <ul className="mt-1 list-disc pl-5">{rejeitadas.slice(0, 5).map((o) => <li key={o.seq}>{o.erro}</li>)}</ul>
-            <p className="mt-1">Procure o gestor da operação.</p>
-          </Aviso>
-        </div>
-      )}
+      {!!rejeitadas?.length && <AvisoRecusas rejeitadas={rejeitadas} />}
       <CartaoSincronizacao />
       {usuario && pode(usuario.papel, 'config:ler') && (
         <Link to="/admin" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-marca font-semibold text-marca">
@@ -106,6 +99,36 @@ export function TelaInicio() {
         </>
       )}
     </Moldura>
+  );
+}
+
+/** O que foi recusado, de qual veículo e por quê. Os dados continuam no aparelho e podem ir de novo. */
+function AvisoRecusas({ rejeitadas }: { rejeitadas: OpFila[] }) {
+  const veiculos = useLiveQuery(() => banco.veiculos.toArray(), []);
+  const placa = (id: string) => identificacaoVeiculo(veiculos?.find((x) => x.id === id));
+  const oQue = ({ op }: OpFila) =>
+    op.tipo === 'inspecao.salvar'
+      ? `Verificação ${placa(op.inspecao.veiculoId)}, iniciada em ${dataHora(op.inspecao.iniciadaEm)}`
+      : op.tipo === 'veiculo.salvar'
+        ? `Cadastro do veículo ${op.veiculo.placa ?? op.veiculo.codigo ?? ''}`.trim()
+        : 'Foto de uma verificação';
+  return (
+    <div className="secao">
+      <Aviso tom="erro">
+        <p className="font-semibold">{rejeitadas.length} registro(s) não aceito(s) pelo servidor:</p>
+        <ul className="mt-1 list-disc pl-5">
+          {rejeitadas.slice(0, 5).map((o) => (
+            <li key={o.seq}>
+              <span className="font-semibold">{oQue(o)}:</span> {o.erro ?? 'Recusado pelo servidor.'}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-1">Os dados continuam salvos neste aparelho. Corrija e salve de novo, ou procure o gestor da operação.</p>
+        <button className="botao botao--secundario botao--compacto mt-2" onClick={() => void reenviarRejeitadas()}>
+          Tentar enviar de novo
+        </button>
+      </Aviso>
+    </div>
   );
 }
 
