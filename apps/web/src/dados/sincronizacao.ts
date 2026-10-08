@@ -85,12 +85,15 @@ async function enviarFila(): Promise<void> {
  * fila. Então cada operação vai sozinha: as válidas são aplicadas e só a culpada
  * fica "rejeitada", com a mensagem do servidor. Nada é descartado do aparelho.
  */
+/** "operacoes.0.inspecao.respostas.3.evidenciaIds: Foto obrigatória…" → "Foto obrigatória…": o inspetor lê a regra, não o caminho do campo. */
+const semCaminho = (m: string) => [...new Set(m.split("; ").map((p) => p.replace(/^[\w.]+: /, "")))].join("; ");
+
 async function enviarLote(dispositivoId: string, ops: OperacaoSync[]): Promise<ResultadoOp[]> {
   try {
     return (await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: ops }) })).resultados;
   } catch (e) {
     if (!(e instanceof ErroDaApi && e.status === 400)) throw e;
-    if (ops.length === 1) return [{ opId: ops[0]!.opId, status: "rejeitada", erro: e.message.replace(/operacoes\.\d+\./g, "") }];
+    if (ops.length === 1) return [{ opId: ops[0]!.opId, status: "rejeitada", erro: semCaminho(e.message) }];
     const resultados: ResultadoOp[] = [];
     for (const op of ops) resultados.push(...(await enviarLote(dispositivoId, [op])));
     return resultados;

@@ -102,7 +102,7 @@ describe('tela inicial do inspetor', () => {
     // Diz QUAL verificação foi recusada, que nada se perdeu e deixa mandar de novo.
     await screen.findByText(/^Verificação ABC1D23, iniciada em/, undefined, ESPERA);
     screen.getByText(/Os dados continuam salvos neste aparelho/);
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar enviar de novo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar agora' }));
     await waitFor(async () => expect(await banco.fila.where('estado').equals('rejeitada').count()).toBe(0));
   });
 
