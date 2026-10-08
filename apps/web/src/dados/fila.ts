@@ -1,5 +1,5 @@
 import type { OperacaoSync } from "@checkvale/shared";
-import { banco } from "./banco";
+import { banco, type OpFila } from "./banco";
 
 type SemEnvelope<T> = T extends unknown ? Omit<T, "opId" | "criadaEm"> : never;
 export type NovaOperacao = SemEnvelope<OperacaoSync>;
@@ -19,11 +19,21 @@ export function aoEnfileirar(fn: () => void): () => void {
 }
 
 /**
+ * Recusada volta para o FIM da fila como operação nova. O opId tem de mudar: o servidor
+ * guarda a resposta de cada opId e devolveria a mesma recusa para sempre.
+ */
+async function devolverAFila(o: OpFila): Promise<void> {
+  await banco.fila.delete(o.seq!);
+  await banco.fila.add({ estado: "pendente", op: { ...o.op, opId: crypto.randomUUID(), criadaEm: new Date().toISOString() }, alvo: o.alvo, erro: null, rejeicao: null });
+}
+
+/**
  * Empilha uma operação. Snapshot da mesma entidade ainda PENDENTE é
  * substituído (ganha opId novo), para a fila não crescer a cada toque.
  * Operação "enviando" nunca é alterada: pode já ter chegado ao servidor.
  * Snapshot recusado da mesma entidade sai da fila: o novo traz o estado
- * inteiro, corrigido, e é ele que vale.
+ * inteiro, corrigido, e é ele que vale. As fotos dessa inspeção que foram
+ * recusadas junto (o servidor não achou a inspeção) voltam DEPOIS dele.
  */
 export async function enfileirar(nova: NovaOperacao): Promise<void> {
   const op = { ...nova, opId: crypto.randomUUID(), criadaEm: new Date().toISOString() } as OperacaoSync;
@@ -33,13 +43,19 @@ export async function enfileirar(nova: NovaOperacao): Promise<void> {
     if (nova.tipo !== "evidencia.registrar") await banco.fila.where({ alvo }).filter((o) => o.estado === "rejeitada").delete();
     if (pendente && nova.tipo !== "evidencia.registrar") await banco.fila.update(pendente.seq!, { op });
     else await banco.fila.add({ estado: "pendente", op, alvo, erro: null });
+    if (nova.tipo === "inspecao.salvar") {
+      const fotos = await banco.fila.where("estado").equals("rejeitada").filter((o) => o.op.tipo === "evidencia.registrar" && o.op.evidencia.inspecaoId === nova.inspecao.id).sortBy("seq");
+      for (const f of fotos) await devolverAFila(f);
+    }
   });
   ouvintes.forEach((fn) => fn());
 }
 
-/** Devolve à fila o que o servidor recusou (o inspetor pede de novo, ex.: depois de atualizar o app). */
+/** "Tentar agora": devolve à fila o que o servidor recusou, na ordem original (inspeção antes das fotos dela). */
 export async function reenviarRejeitadas(): Promise<void> {
-  await banco.fila.where("estado").equals("rejeitada").modify({ estado: "pendente", erro: null });
+  await banco.transaction("rw", banco.fila, async () => {
+    for (const o of await banco.fila.where("estado").equals("rejeitada").sortBy("seq")) await devolverAFila(o);
+  });
   ouvintes.forEach((fn) => fn());
 }
 

@@ -156,6 +156,71 @@ describe("operação recusada pelo servidor", () => {
   });
 });
 
+/**
+ * Servidor como o da fix/sync-por-operacao: valida operação por operação, guarda a resposta
+ * de cada opId (reenvio do mesmo opId recebe a mesma recusa) e recusa a foto cuja inspeção não gravou.
+ */
+function servidorComMemoria() {
+  const respostas = new Map<string, { opId: string; status: string; erro: string | null }>();
+  const inspecoes = new Set<string>();
+  const fotos: string[] = [];
+  const estado = { ruim: new Set<string>() };
+  const json = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/sync") {
+      const e = JSON.parse(init!.body as string) as SyncEntrada;
+      const resultados = e.operacoes.map((o) => {
+        const ja = respostas.get(o.opId);
+        if (ja) return ja;
+        let r = { opId: o.opId, status: "aplicada", erro: null as string | null };
+        if (o.tipo === "inspecao.salvar" && estado.ruim.has(o.inspecao.id)) r = { ...r, status: "rejeitada", erro: "Foto obrigatória." };
+        else if (o.tipo === "inspecao.salvar") inspecoes.add(o.inspecao.id);
+        else if (o.tipo === "evidencia.registrar" && !inspecoes.has(o.evidencia.inspecaoId)) r = { ...r, status: "rejeitada", erro: "Inspeção da evidência não encontrada." };
+        respostas.set(o.opId, r);
+        return r;
+      });
+      return json({ resultados, servidorEm: new Date().toISOString() });
+    }
+    if (url.startsWith("/api/evidencias/")) { fotos.push(url); return json({ url }); }
+    if (url.startsWith("/api/catalogo")) return json({ versao: "1", unidades: [], areas: [], atividades: [], tiposVeiculo: [], modelos: [] });
+    if (url.startsWith("/api/veiculos")) return json({ veiculos: [], servidorEm: new Date().toISOString() });
+    if (url.startsWith("/api/inspecoes")) return json({ inspecoes: [], servidorEm: new Date().toISOString() });
+    return new Response("{}", { status: 404 });
+  }));
+  return { estado, inspecoes, fotos };
+}
+
+describe("recusa num servidor que lembra a resposta de cada opId", () => {
+  it("'Tentar agora' manda com opId novo: com o problema resolvido no servidor, passa", async () => {
+    const srv = servidorComMemoria();
+    const i = await repositorioInspecao.criar(ctx);
+    srv.estado.ruim.add(i.id);
+    await sincronizar();
+    expect((await banco.fila.toArray()).map((o) => o.estado)).toEqual(["rejeitada"]);
+    srv.estado.ruim.clear();
+    await reenviarRejeitadas();
+    await sincronizar();
+    expect(await banco.fila.count()).toBe(0);
+    expect(srv.inspecoes.has(i.id)).toBe(true);
+  });
+
+  it("corrigir a inspeção recusada também reenvia as fotos dela, depois da inspeção, e o arquivo sobe", async () => {
+    const srv = servidorComMemoria();
+    const i = await repositorioInspecao.criar(ctx);
+    const foto = await repositorioInspecao.adicionarEvidencia(i.id, uid(), new Blob(["x"], { type: "image/jpeg" }));
+    srv.estado.ruim.add(i.id);
+    await sincronizar();
+    expect((await banco.fila.toArray()).map((o) => [o.op.tipo, o.estado])).toEqual([["inspecao.salvar", "rejeitada"], ["evidencia.registrar", "rejeitada"]]);
+
+    srv.estado.ruim.clear(); // o inspetor corrigiu
+    await repositorioInspecao.salvarResposta(i.id, { itemId: uid(), status: "conforme", observacao: null, naoConformidade: null, evidenciaIds: [] });
+    expect((await banco.fila.toArray()).map((o) => o.op.tipo)).toEqual(["inspecao.salvar", "evidencia.registrar"]);
+    await sincronizar();
+    expect(await banco.fila.count()).toBe(0);
+    expect(srv.fotos).toEqual([`/api/evidencias/${foto.id}/arquivo`]);
+  });
+});
+
 describe("versões de modelo no aparelho", () => {
   it("guarda versões antigas: inspeção da v1 abre depois que a v2 é publicada", async () => {
     const { banco: b } = await import("./banco");
