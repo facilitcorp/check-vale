@@ -129,3 +129,70 @@ describe("versões de modelo no aparelho", () => {
     expect(pedidos.filter((u) => u.includes("/versoes/"))).toEqual([]);
   });
 });
+
+describe("operação recusada não trava a fila", () => {
+  /** Servidor da versão anterior: uma operação fora do contrato derruba o lote inteiro com 400. */
+  function servidorQueRecusaLote(ruim: (o: OperacaoSync) => boolean) {
+    const aplicadas: string[] = [];
+    let chamadas = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const json = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
+      if (url === "/api/sync") {
+        chamadas++;
+        const e = JSON.parse(init!.body as string) as SyncEntrada;
+        if (e.operacoes.some(ruim)) return json({ erro: "dados_invalidos", mensagem: "operacoes.1.veiculo.placa: Placa inválida" }, 400);
+        aplicadas.push(...e.operacoes.map((o) => o.opId));
+        return json({ resultados: e.operacoes.map((o) => ({ opId: o.opId, status: "aplicada", erro: null })), servidorEm: new Date().toISOString() });
+      }
+      if (url.startsWith("/api/catalogo")) return json({ versao: "1", unidades: [], areas: [], atividades: [], tiposVeiculo: [], modelos: [] });
+      if (url.startsWith("/api/veiculos")) return json({ veiculos: [], servidorEm: new Date().toISOString() });
+      if (url.startsWith("/api/inspecoes")) return json({ inspecoes: [], servidorEm: new Date().toISOString() });
+      return new Response("{}", { status: 404 });
+    }));
+    return { aplicadas, chamadas: () => chamadas };
+  }
+
+  it("lote recusado inteiro: manda uma por vez, as boas passam e só a culpada fica rejeitada, com a inspeção", async () => {
+    await repositorioInspecao.criar(ctx);
+    const b = await repositorioInspecao.criar(ctx);
+    await repositorioInspecao.criar(ctx);
+    const srv = servidorQueRecusaLote((o) => o.tipo === "inspecao.salvar" && o.inspecao.id === b.id);
+
+    await sincronizar();
+    const fila = await banco.fila.toArray();
+    expect(fila.map((o) => o.estado)).toEqual(["rejeitada"]);
+    expect(fila[0]!.erro).toMatch(/Placa inválida/);
+    expect(fila[0]!.rejeicao).toEqual({ codigo: "dados_invalidos", inspecaoId: b.id, detalhes: [] });
+    expect(srv.aplicadas).toHaveLength(2);
+    // A inspeção rejeitada continua no aparelho.
+    expect(await banco.inspecoes.get(b.id)).toBeTruthy();
+
+    // Rodada seguinte não reenvia a rejeitada.
+    const antes = srv.chamadas();
+    await sincronizar();
+    expect(srv.chamadas()).toBe(antes);
+  });
+
+  it("rejeição por operação do servidor guarda código, inspeção e detalhes do item", async () => {
+    const i = await repositorioInspecao.criar(ctx);
+    const itemId = uid();
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const json = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
+      if (url === "/api/sync") {
+        const e = JSON.parse(init!.body as string) as SyncEntrada;
+        return json({
+          resultados: e.operacoes.map((o) => ({
+            opId: o.opId, status: "rejeitada", erro: 'Item "Extintor": Tire ao menos uma foto deste item.', codigo: "evidencia_faltando",
+            entidade: "inspecao", entidadeId: i.id, inspecaoId: i.id, detalhes: [{ campo: "evidencia", mensagem: "Tire ao menos uma foto deste item.", itemId }],
+          })),
+          servidorEm: new Date().toISOString(),
+        });
+      }
+      if (url.startsWith("/api/catalogo")) return json({ versao: "1", unidades: [], areas: [], atividades: [], tiposVeiculo: [], modelos: [] });
+      return json({ veiculos: [], inspecoes: [], servidorEm: new Date().toISOString() });
+    }));
+    await sincronizar();
+    const [op] = await banco.fila.toArray();
+    expect(op).toMatchObject({ estado: "rejeitada", rejeicao: { codigo: "evidencia_faltando", inspecaoId: i.id, detalhes: [{ itemId }] } });
+  });
+});

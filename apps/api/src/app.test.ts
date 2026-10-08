@@ -212,6 +212,102 @@ describe("inspeção ponta a ponta via sync", () => {
   });
 });
 
+describe("sync por operação", () => {
+  const veiculoNovo = (extra: Record<string, unknown> = {}) => ({
+    id: randomUUID(), placa: null, codigo: `QA-${randomUUID().slice(0, 8)}`, tipoVeiculoId: catalogo.tiposVeiculo[0]!.id, descricao: "Caminhonete QA", fabricante: "Toyota", modelo: "Hilux",
+    empresa: null, unidadeId: null, status: "ativo", atributos: {}, demo: false, criadoEm: agora(), atualizadoEm: agora(), ...extra,
+  });
+  async function lote(operacoes: Record<string, unknown>[]) {
+    const r = await app.inject({ method: "POST", url: "/api/sync", headers: auth(), payload: { dispositivoId, operacoes: operacoes.map((o) => ({ criadaEm: agora(), ...o })) } });
+    expect(r.statusCode, r.body).toBe(200);
+    return (r.json() as SyncSaida).resultados;
+  }
+  async function inspecaoBase(): Promise<Inspecao> {
+    const veiculos = (await app.inject({ method: "GET", url: "/api/veiculos", headers: auth() })).json().veiculos;
+    const onibus = veiculos.find((v: { placa: string }) => v.placa === "BVL2E77");
+    const modelo = catalogo.modelos[0]!;
+    return {
+      id: randomUUID(), modeloId: modelo.id, modeloVersao: modelo.versao, unidadeId: catalogo.unidades[0]!.id, areaId: catalogo.areas[0]!.id,
+      atividadeId: catalogo.atividades[0]!.id, veiculoId: onibus.id, inspetorId: usuarioId, tipoVeiculoId: onibus.tipoVeiculoId,
+      atributosVeiculo: onibus.atributos, status: "em_andamento", iniciadaEm: agora(), concluidaEm: null, respostas: [],
+    };
+  }
+
+  it("uma operação inválida no meio do lote é rejeitada sozinha, com item, código e detalhe; as outras gravam", async () => {
+    const item = catalogo.modelos[0]!.categorias[0]!.itens[0]!;
+    const boa = await inspecaoBase();
+    const ruim = await inspecaoBase();
+    // NC sem foto: o app de hoje não deixa, mas um app antigo ou alterado pode mandar.
+    const ncSemFoto = { itemId: item.id, status: "nao_conforme", observacao: null, naoConformidade: { descricao: "Sem foto", criticidade: "alta" }, evidenciaIds: [], respondidaEm: agora() };
+    const evidenciaId = randomUUID();
+    const ops = [
+      { opId: randomUUID(), tipo: "veiculo.salvar", veiculo: veiculoNovo() },
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: boa },
+      { opId: randomUUID(), tipo: "inspecao.salvar", inspecao: { ...ruim, respostas: [ncSemFoto] } },
+      { opId: randomUUID(), tipo: "veiculo.salvar", veiculo: veiculoNovo() },
+      { opId: randomUUID(), tipo: "evidencia.registrar", evidencia: { id: evidenciaId, inspecaoId: boa.id, itemId: item.id, mime: "image/jpeg", bytes: 3, capturadaEm: agora(), url: null } },
+    ];
+    const r = await lote(ops);
+    expect(r.map((x) => x.status)).toEqual(["aplicada", "aplicada", "rejeitada", "aplicada", "aplicada"]);
+    expect(r[2]).toMatchObject({
+      opId: ops[2]!.opId, codigo: "dados_invalidos", entidade: "inspecao", entidadeId: ruim.id, inspecaoId: ruim.id,
+      erro: `Item "${item.titulo}": Foto obrigatória para não conformidade.`,
+      detalhes: [{ campo: "inspecao.respostas.0.evidenciaIds", mensagem: "Foto obrigatória para não conformidade.", itemId: item.id }],
+    });
+    const gravadas = await db.query<{ id: string }>(`SELECT id FROM inspecoes WHERE id = ANY($1)`, [[boa.id, ruim.id]]);
+    expect(gravadas.rows.map((x) => x.id)).toEqual([boa.id]);
+
+    // Reenvio do mesmo lote: as gravadas viram "duplicada" e a rejeitada responde igual, sem gravar de novo.
+    const de_novo = await lote(ops);
+    expect(de_novo.map((x) => x.status)).toEqual(["duplicada", "duplicada", "rejeitada", "duplicada", "duplicada"]);
+    expect(de_novo[2]).toEqual(r[2]);
+    const reg = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM sync_ops WHERE op_id = $1`, [ops[2]!.opId]);
+    expect(reg.rows[0]!.n).toBe(1);
+  });
+
+  it("tipo desconhecido e dado que o banco recusa são rejeitados, não travam o lote", async () => {
+    const r = await lote([
+      { opId: randomUUID(), tipo: "veiculo.apagar", veiculo: { id: randomUUID() } },
+      // Unidade inexistente: o banco recusa pela chave estrangeira. Antes virava 500 e o app reenviava para sempre.
+      { opId: randomUUID(), tipo: "veiculo.salvar", veiculo: veiculoNovo({ unidadeId: randomUUID() }) },
+      { opId: randomUUID(), tipo: "veiculo.salvar", veiculo: veiculoNovo() },
+    ]);
+    expect(r.map((x) => [x.status, x.codigo])).toEqual([["rejeitada", "dados_invalidos"], ["rejeitada", "recusada_pelo_banco"], ["aplicada", undefined]]);
+    expect(r[0]).toMatchObject({ entidade: null, inspecaoId: null });
+    expect(r[1]!.erro).toBe("O servidor não aceitou os dados deste registro.");
+  });
+
+  it("evidência faltando na conclusão lista todos os itens, não só o primeiro", async () => {
+    const base = await inspecaoBase();
+    const itens = aplicarRegras(catalogo.modelos[0]!, contextoDaInspecao(base)).categorias.flatMap((c) => c.itens);
+    // Força dois itens com foto obrigatória direto na versão publicada (o modelo DEMO não tem).
+    const alvo = [itens[0]!.id, itens[1]!.id];
+    await db.query(
+      `UPDATE modelos_checklist SET categorias = (
+         SELECT jsonb_agg(jsonb_set(c, '{itens}', (SELECT jsonb_agg(CASE WHEN i->>'id' = ANY($3) THEN i || '{"evidencia":"foto"}' ELSE i END) FROM jsonb_array_elements(c->'itens') i)))
+         FROM jsonb_array_elements(categorias) c)
+       WHERE id = $1 AND versao = $2`, [base.modeloId, base.modeloVersao, alvo]);
+    try {
+      const respostas = itens.map((it) => ({ itemId: it.id, status: "conforme", observacao: null, naoConformidade: null, evidenciaIds: [], respondidaEm: agora() }));
+      const [r] = await lote([{ opId: randomUUID(), tipo: "inspecao.salvar", inspecao: { ...base, status: "concluida", concluidaEm: agora(), respostas } }]);
+      expect(r).toMatchObject({ status: "rejeitada", codigo: "evidencia_faltando", inspecaoId: base.id });
+      expect(r!.detalhes!.map((d) => d.itemId)).toEqual(alvo);
+      expect(r!.erro).toMatch(/e mais 1 item/);
+    } finally {
+      await db.query(
+        `UPDATE modelos_checklist SET categorias = (
+           SELECT jsonb_agg(jsonb_set(c, '{itens}', (SELECT jsonb_agg(i - 'evidencia') FROM jsonb_array_elements(c->'itens') i)))
+           FROM jsonb_array_elements(categorias) c)
+         WHERE id = $1 AND versao = $2`, [base.modeloId, base.modeloVersao]);
+    }
+  });
+
+  it("lote sem dispositivo ou operação sem opId continua 400 (não há como devolver o resultado)", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/sync", headers: auth(), payload: { dispositivoId, operacoes: [{ tipo: "veiculo.salvar" }] } });
+    expect(r.statusCode).toBe(400);
+  });
+});
+
 describe("segurança", () => {
   it("responde com cabeçalhos de segurança", async () => {
     const r = await app.inject({ method: "GET", url: "/api/saude" });

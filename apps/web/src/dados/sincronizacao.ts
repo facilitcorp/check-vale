@@ -1,7 +1,7 @@
 import type { Catalogo, Inspecao, ModeloChecklist, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
 import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
-import { aoEnfileirar, contarPendentes } from "./fila";
+import { aoEnfileirar, contarPendentes, inspecaoDaOp } from "./fila";
 
 /**
  * Motor de sincronização. Ordem de cada rodada:
@@ -35,6 +35,11 @@ export function observarSync(fn: (e: EstadoSync) => void): () => void {
 }
 
 const LOTE = 50;
+/**
+ * Lote recusado inteiro: servidor de versão anterior (validava o lote todo), corpo grande demais
+ * ou envelope que ele não aceita. Reenviar igual nunca passa; manda uma operação por vez.
+ */
+const RECUSA_DO_LOTE = new Set([400, 409, 413, 422]);
 
 async function enviarFila(): Promise<void> {
   const dispositivoId = await idDispositivo();
@@ -42,11 +47,12 @@ async function enviarFila(): Promise<void> {
   // o envio dela morreu com a página (app fechado, recarga). Volta para a fila com o MESMO
   // opId; se outra aba ainda a estiver enviando, o servidor responde "duplicada".
   await banco.fila.where("estado").equals("enviando").modify({ estado: "pendente" });
+  let tamanho = LOTE;
   for (;;) {
     // Ler e marcar "enviando" na MESMA transação: enfileirar() não consegue trocar o
     // conteúdo de uma linha entre o momento em que ela é lida e o momento em que sobe.
     const lote = await banco.transaction("rw", banco.fila, async () => {
-      const l = (await banco.fila.where("estado").equals("pendente").sortBy("seq")).slice(0, LOTE);
+      const l = (await banco.fila.where("estado").equals("pendente").sortBy("seq")).slice(0, tamanho);
       await banco.fila.where("seq").anyOf(l.map((o) => o.seq!)).modify({ estado: "enviando" });
       return l;
     });
@@ -56,8 +62,21 @@ async function enviarFila(): Promise<void> {
     try {
       saida = await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: lote.map((o) => o.op) }) });
     } catch (e) {
+      const recusa = e instanceof ErroDaApi && RECUSA_DO_LOTE.has(e.status);
+      if (recusa && lote.length === 1) {
+        // Sozinha e ainda recusada: é ela. Fica como rejeitada (com a inspeção guardada no aparelho), não trava a fila.
+        const [o] = lote;
+        await banco.transaction("rw", banco.fila, async () => {
+          const atual = await banco.fila.get(o!.seq!);
+          if (atual?.estado !== "enviando") return;
+          if (atual.op.opId !== o!.op.opId) return void (await banco.fila.update(o!.seq!, { estado: "pendente" }));
+          await banco.fila.update(o!.seq!, { estado: "rejeitada", erro: e.message, rejeicao: { codigo: e.codigo, inspecaoId: inspecaoDaOp(o!.op), detalhes: [] } });
+        });
+        continue;
+      }
       // Volta para pendente com o MESMO opId: reenviar é seguro (idempotente no servidor).
       await banco.fila.where("seq").anyOf(seqs).and((o) => o.estado === "enviando").modify({ estado: "pendente" });
+      if (recusa) { tamanho = 1; continue; }
       throw e;
     }
     const porOp = new Map(saida.resultados.map((r) => [r.opId, r]));
@@ -72,7 +91,12 @@ async function enviarFila(): Promise<void> {
         }
         const r = porOp.get(o.op.opId);
         if (!r) await banco.fila.update(o.seq!, { estado: "pendente" });
-        else if (r.status === "rejeitada") await banco.fila.update(o.seq!, { estado: "rejeitada", erro: r.erro });
+        else if (r.status === "rejeitada")
+          await banco.fila.update(o.seq!, {
+            estado: "rejeitada",
+            erro: r.erro,
+            rejeicao: { codigo: r.codigo ?? "dados_invalidos", inspecaoId: r.inspecaoId ?? inspecaoDaOp(o.op), detalhes: r.detalhes ?? [] },
+          });
         else await banco.fila.delete(o.seq!);
       }
     });

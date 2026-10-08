@@ -83,17 +83,62 @@ export const OpEvidenciaRegistrar = z.object({
 export const OperacaoSync = z.discriminatedUnion("tipo", [OpVeiculoSalvar, OpInspecaoSalvar, OpEvidenciaRegistrar]);
 export type OperacaoSync = z.infer<typeof OperacaoSync>;
 
+/** O que o app envia ao /sync. */
 export const SyncEntrada = z.object({
   dispositivoId: Id,
   operacoes: z.array(OperacaoSync).min(1).max(100),
 });
 export type SyncEntrada = z.infer<typeof SyncEntrada>;
 
+/**
+ * O que o servidor exige do lote antes de abrir as operações. Cada operação é validada
+ * sozinha (OperacaoSync): uma operação inválida é rejeitada e não derruba as outras do lote.
+ * Sem opId não há como devolver o resultado, então esse caso continua recusando o lote.
+ */
+export const SyncLote = z.object({
+  dispositivoId: Id,
+  operacoes: z.array(z.looseObject({ opId: Id })).min(1).max(100),
+});
+
+/**
+ * Códigos de rejeição. O app decide a tela pelo código e mostra `erro` como texto.
+ * Lista aberta: app antigo que recebe código novo mostra só o texto.
+ */
+export const CODIGOS_REJEICAO = [
+  "dados_invalidos", // a operação não passa no contrato (versão antiga do app, campo fora da regra)
+  "evidencia_faltando", // conclusão com foto ou observação obrigatória faltando
+  "item_fora_do_modelo",
+  "modelo_indisponivel", // versão inexistente ou ainda em rascunho
+  "referencia_inexistente", // unidade, área, atividade, veículo, tipo ou inspeção não encontrados
+  "outro_inspetor",
+  "placa_duplicada",
+  "atributos_invalidos",
+  "recusada_pelo_banco", // dado que o banco recusa sempre (restrição, formato): reenviar não adianta
+] as const;
+export type CodigoRejeicao = (typeof CODIGOS_REJEICAO)[number];
+
+/** Onde está o problema. itemId aponta o item do checklist quando o erro é de uma resposta. */
+export const DetalheRejeicao = z.object({
+  campo: z.string(),
+  mensagem: z.string(),
+  itemId: z.string().nullable(),
+});
+export type DetalheRejeicao = z.infer<typeof DetalheRejeicao>;
+
 export const ResultadoOp = z.object({
   opId: Id,
   /** aplicada = gravou agora; duplicada = já tinha sido aplicada; rejeitada = erro permanente (não reenviar). */
   status: z.enum(["aplicada", "duplicada", "rejeitada"]),
+  /** Mensagem para o usuário, em PT-BR. Só na rejeitada. */
   erro: z.string().nullable(),
+  // Só na rejeitada (opcionais: servidor antigo não manda).
+  codigo: z.string().optional(),
+  entidade: z.enum(["veiculo", "inspecao", "evidencia"]).nullable().optional(),
+  /** Id do veículo, da inspeção ou da foto que a operação carregava. */
+  entidadeId: z.string().nullable().optional(),
+  /** Inspeção afetada: a própria, ou a dona da foto. */
+  inspecaoId: z.string().nullable().optional(),
+  detalhes: z.array(DetalheRejeicao).optional(),
 });
 export type ResultadoOp = z.infer<typeof ResultadoOp>;
 

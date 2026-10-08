@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Catalogo, Evidencia, Inspecao, ModeloChecklist, OperacaoSync, Usuario, Veiculo } from "@checkvale/shared";
+import type { Catalogo, DetalheRejeicao, Evidencia, Inspecao, ModeloChecklist, OperacaoSync, Usuario, Veiculo } from "@checkvale/shared";
 
 /** Sessão salva no aparelho: permite reabrir o app sem rede enquanto o token valer. */
 export interface SessaoLocal {
@@ -30,6 +30,15 @@ export interface OpFila {
   /** Chave da entidade, para juntar snapshots repetidos ainda não enviados. */
   alvo: string;
   erro: string | null;
+  /** Só na rejeitada: o que o servidor disse, para a tela mostrar a inspeção e o item. */
+  rejeicao?: RejeicaoLocal | null;
+}
+
+export interface RejeicaoLocal {
+  codigo: string;
+  /** Inspeção afetada (a própria ou a dona da foto); null para veículo. */
+  inspecaoId: string | null;
+  detalhes: DetalheRejeicao[];
 }
 
 export interface Meta {

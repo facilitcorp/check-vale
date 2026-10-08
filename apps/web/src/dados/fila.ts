@@ -7,6 +7,10 @@ export type NovaOperacao = SemEnvelope<OperacaoSync>;
 const alvoDe = (op: NovaOperacao) =>
   op.tipo === "veiculo.salvar" ? `veiculo:${op.veiculo.id}` : op.tipo === "inspecao.salvar" ? `inspecao:${op.inspecao.id}` : `evidencia:${op.evidencia.id}`;
 
+/** Inspeção que a operação afeta: a própria ou a dona da foto. */
+export const inspecaoDaOp = (op: NovaOperacao): string | null =>
+  op.tipo === "inspecao.salvar" ? op.inspecao.id : op.tipo === "evidencia.registrar" ? op.evidencia.inspecaoId : null;
+
 const ouvintes = new Set<() => void>();
 /** Avisado a cada operação nova (o motor de sync usa para enviar logo). */
 export function aoEnfileirar(fn: () => void): () => void {

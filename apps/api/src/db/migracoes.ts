@@ -262,4 +262,12 @@ INSERT INTO setores (id, nome, icone, ordem) VALUES
   (gen_random_uuid(), 'Saneamento, resíduos e serviços ambientais', 'reciclagem', 100);
 `,
   ],
+  [
+    "004_sync_rejeicao",
+    `
+-- Rejeição do /sync com código e detalhe: o reenvio da mesma operação responde igual.
+ALTER TABLE sync_ops ADD COLUMN codigo text;
+ALTER TABLE sync_ops ADD COLUMN detalhes jsonb;
+`,
+  ],
 ];
