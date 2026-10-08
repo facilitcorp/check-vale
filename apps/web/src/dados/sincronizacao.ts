@@ -1,4 +1,4 @@
-import type { Catalogo, Inspecao, ModeloChecklist, SyncSaida, Veiculo } from "@checkvale/shared";
+import type { Catalogo, Inspecao, ModeloChecklist, OperacaoSync, ResultadoOp, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
 import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
 import { aoEnfileirar, contarPendentes, inspecaoDaOp } from "./fila";
@@ -58,9 +58,9 @@ async function enviarFila(): Promise<void> {
     });
     if (lote.length === 0) return;
     const seqs = lote.map((o) => o.seq!);
-    let saida: SyncSaida;
+    let resultados: ResultadoOp[];
     try {
-      saida = await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: lote.map((o) => o.op) }) });
+      resultados = await enviarLote(dispositivoId, lote.map((o) => o.op));
     } catch (e) {
       const recusa = e instanceof ErroDaApi && RECUSA_DO_LOTE.has(e.status);
       if (recusa && lote.length === 1) {
@@ -79,7 +79,7 @@ async function enviarFila(): Promise<void> {
       if (recusa) { tamanho = 1; continue; }
       throw e;
     }
-    const porOp = new Map(saida.resultados.map((r) => [r.opId, r]));
+    const porOp = new Map(resultados.map((r) => [r.opId, r]));
     await banco.transaction("rw", banco.fila, async () => {
       for (const o of lote) {
         // A confirmação só vale para a operação que foi enviada. Se a linha agora guarda
@@ -100,6 +100,24 @@ async function enviarFila(): Promise<void> {
         else await banco.fila.delete(o.seq!);
       }
     });
+  }
+}
+
+/**
+ * 400 = o servidor recusou o lote INTEIRO por causa de uma operação (validação do
+ * lote todo de uma vez). Reenviar o mesmo lote daria 400 para sempre e travaria a
+ * fila. Então cada operação vai sozinha: as válidas são aplicadas e só a culpada
+ * fica "rejeitada", com a mensagem do servidor. Nada é descartado do aparelho.
+ */
+async function enviarLote(dispositivoId: string, ops: OperacaoSync[]): Promise<ResultadoOp[]> {
+  try {
+    return (await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: ops }) })).resultados;
+  } catch (e) {
+    if (!(e instanceof ErroDaApi && e.status === 400)) throw e;
+    if (ops.length === 1) return [{ opId: ops[0]!.opId, status: "rejeitada", erro: e.message.replace(/operacoes\.\d+\./g, "") }];
+    const resultados: ResultadoOp[] = [];
+    for (const op of ops) resultados.push(...(await enviarLote(dispositivoId, [op])));
+    return resultados;
   }
 }
 
@@ -132,8 +150,9 @@ async function baixar(): Promise<void> {
 
   const desdeV = await lerMeta("cursor:veiculos");
   const v = await chamarApi<{ veiculos: Veiculo[]; servidorEm: string }>(`/veiculos${desdeV ? `?desde=${encodeURIComponent(desdeV)}` : ""}`);
-  // Não sobrescreve veículo com alteração local ainda na fila.
-  const naFila = new Set((await banco.fila.where("estado").anyOf("pendente", "enviando").toArray()).map((o) => o.alvo));
+  // Não sobrescreve o que o aparelho ainda não conseguiu entregar: na fila ou recusado
+  // (a cópia local da inspeção recusada é a única com as respostas do inspetor).
+  const naFila = new Set((await banco.fila.where("estado").anyOf("pendente", "enviando", "rejeitada").toArray()).map((o) => o.alvo));
   await banco.veiculos.bulkPut(v.veiculos.filter((x) => !naFila.has(`veiculo:${x.id}`)));
   await gravarMeta("cursor:veiculos", v.servidorEm);
 

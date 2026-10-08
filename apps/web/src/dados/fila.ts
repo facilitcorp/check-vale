@@ -22,15 +22,24 @@ export function aoEnfileirar(fn: () => void): () => void {
  * Empilha uma operação. Snapshot da mesma entidade ainda PENDENTE é
  * substituído (ganha opId novo), para a fila não crescer a cada toque.
  * Operação "enviando" nunca é alterada: pode já ter chegado ao servidor.
+ * Snapshot recusado da mesma entidade sai da fila: o novo traz o estado
+ * inteiro, corrigido, e é ele que vale.
  */
 export async function enfileirar(nova: NovaOperacao): Promise<void> {
   const op = { ...nova, opId: crypto.randomUUID(), criadaEm: new Date().toISOString() } as OperacaoSync;
   const alvo = alvoDe(nova);
   await banco.transaction("rw", banco.fila, async () => {
     const pendente = await banco.fila.where({ alvo }).filter((o) => o.estado === "pendente").first();
+    if (nova.tipo !== "evidencia.registrar") await banco.fila.where({ alvo }).filter((o) => o.estado === "rejeitada").delete();
     if (pendente && nova.tipo !== "evidencia.registrar") await banco.fila.update(pendente.seq!, { op });
     else await banco.fila.add({ estado: "pendente", op, alvo, erro: null });
   });
+  ouvintes.forEach((fn) => fn());
+}
+
+/** Devolve à fila o que o servidor recusou (o inspetor pede de novo, ex.: depois de atualizar o app). */
+export async function reenviarRejeitadas(): Promise<void> {
+  await banco.fila.where("estado").equals("rejeitada").modify({ estado: "pendente", erro: null });
   ouvintes.forEach((fn) => fn());
 }
 
