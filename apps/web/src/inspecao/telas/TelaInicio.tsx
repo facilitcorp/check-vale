@@ -4,7 +4,6 @@ import { LogOut, Settings } from 'lucide-react';
 import { pode, type Inspecao } from '@checkvale/shared';
 import { Aviso } from '../../componentes/ui';
 import { banco, type OpFila } from '../../dados/banco';
-import { reenviarRejeitadas } from '../../dados/fila';
 import { useSituacaoSyncGeral, useSituacaoSyncInspecao, type SituacaoSync } from '../../dados/estadoSync';
 import { useCatalogo, useChecklistDaInspecao } from '../../dados/ganchos';
 import { repositorioInspecao } from '../../dados/repositorio';
@@ -124,9 +123,6 @@ function AvisoRecusas({ rejeitadas }: { rejeitadas: OpFila[] }) {
           ))}
         </ul>
         <p className="mt-1">Os dados continuam salvos neste aparelho. Corrija e salve de novo, ou procure o gestor da operação.</p>
-        <button className="botao botao--secundario botao--compacto mt-2" onClick={() => void reenviarRejeitadas()}>
-          Tentar enviar de novo
-        </button>
       </Aviso>
     </div>
   );

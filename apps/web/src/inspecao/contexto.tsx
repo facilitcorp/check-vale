@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { repositorioInspecao } from '../dados/repositorio';
 import { useEstadoSyncGlobal } from '../dados/estadoSync';
 import { sincronizar } from '../dados/sincronizacao';
+import { reenviarRejeitadas } from '../dados/fila';
 
 /**
  * Utilidades de tela do fluxo da inspeção. Dado, regra e sync vêm da fundação
@@ -33,9 +34,9 @@ export function useUrlEvidencia(id: string): string | null | undefined {
   return url;
 }
 
-/** "Tentar agora": força uma rodada de sincronização. */
+/** "Tentar agora": devolve à fila o que o servidor recusou e força uma rodada de sincronização. */
 export function useTentarAgora(): () => void {
-  return () => void sincronizar();
+  return () => void reenviarRejeitadas().then(sincronizar);
 }
 
 const EVENTO_SALVO = 'checkvale:salvo';

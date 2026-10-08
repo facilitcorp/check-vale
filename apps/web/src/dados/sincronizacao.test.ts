@@ -115,7 +115,7 @@ describe("operação recusada pelo servidor", () => {
     expect(srv.recebidas.map((o) => o.tipo === "inspecao.salvar" && o.inspecao.id)).toEqual([a.id, c.id]);
     const fila = await banco.fila.toArray();
     expect(fila).toHaveLength(1);
-    expect(fila[0]).toMatchObject({ estado: "rejeitada", alvo: `inspecao:${b.id}`, erro: "inspecao.respostas.0.evidenciaIds: Foto obrigatória para não conformidade." });
+    expect(fila[0]).toMatchObject({ estado: "rejeitada", alvo: `inspecao:${b.id}`, erro: "Foto obrigatória para não conformidade." });
 
     // Rodadas seguintes não reenviam a recusada: nada de laço.
     const chamadas = srv.lotes.length;
@@ -144,7 +144,7 @@ describe("operação recusada pelo servidor", () => {
     expect(srv.recebidas.map((o) => o.tipo === "inspecao.salvar" && o.inspecao.id)).toEqual([b.id]);
   });
 
-  it("'Tentar enviar de novo' devolve a recusada à fila", async () => {
+  it("'Tentar agora' devolve a recusada à fila", async () => {
     const { b, ruim } = await tresInspecoes();
     servidorFalso(ruim);
     await sincronizar();
