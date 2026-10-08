@@ -80,7 +80,7 @@ async function enviarFila(): Promise<void> {
       throw e;
     }
     const porOp = new Map(saida.resultados.map((r) => [r.opId, r]));
-    await banco.transaction("rw", banco.fila, async () => {
+    await banco.transaction("rw", banco.fila, banco.inspecoes, async () => {
       for (const o of lote) {
         // A confirmação só vale para a operação que foi enviada. Se a linha agora guarda
         // outra (opId diferente), ela é mais nova: fica na fila para o próximo envio.
@@ -91,16 +91,29 @@ async function enviarFila(): Promise<void> {
         }
         const r = porOp.get(o.op.opId);
         if (!r) await banco.fila.update(o.seq!, { estado: "pendente" });
-        else if (r.status === "rejeitada")
+        else if (r.status === "rejeitada") {
           await banco.fila.update(o.seq!, {
             estado: "rejeitada",
             erro: r.erro,
             rejeicao: { codigo: r.codigo ?? "dados_invalidos", inspecaoId: r.inspecaoId ?? inspecaoDaOp(o.op), detalhes: r.detalhes ?? [] },
           });
+          if (r.codigo === "evidencia_faltando" && o.op.tipo === "inspecao.salvar") await reabrirParaCorrigir(o.op.inspecao.id);
+        }
         else await banco.fila.delete(o.seq!);
       }
     });
   }
+}
+
+/**
+ * Concluída no aparelho, recusada no servidor por evidência faltando (ex.: app antigo,
+ * sem a regra nova de foto/observação). Concluída não aceita resposta, então o inspetor
+ * ficaria sem saída: volta para "em andamento" e a conclusão mostra o item que falta.
+ * Sem enfileirar: a recusa fica na fila (com o motivo) até ele salvar a correção.
+ */
+async function reabrirParaCorrigir(inspecaoId: string): Promise<void> {
+  const i = await banco.inspecoes.get(inspecaoId);
+  if (i?.status === "concluida") await banco.inspecoes.put({ ...i, status: "em_andamento", concluidaEm: null });
 }
 
 /** "operacoes.0.inspecao.respostas.3.evidenciaIds: Foto obrigatória…" → "Foto obrigatória…": o inspetor lê a regra, não o caminho do campo. */

@@ -161,10 +161,11 @@ describe("operação recusada pelo servidor", () => {
  * de cada opId (reenvio do mesmo opId recebe a mesma recusa) e recusa a foto cuja inspeção não gravou.
  */
 function servidorComMemoria() {
-  const respostas = new Map<string, { opId: string; status: string; erro: string | null }>();
+  const respostas = new Map<string, { opId: string; status: string; erro: string | null; codigo?: string }>();
   const inspecoes = new Set<string>();
   const fotos: string[] = [];
-  const estado = { ruim: new Set<string>() };
+  const estado = { ruim: new Set<string>(), semEvidencia: new Set<string>() };
+  const concluidas = new Set<string>();
   const json = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200, headers: { "content-type": "application/json" } });
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     if (url === "/api/sync") {
@@ -172,8 +173,11 @@ function servidorComMemoria() {
       const resultados = e.operacoes.map((o) => {
         const ja = respostas.get(o.opId);
         if (ja) return ja;
-        let r = { opId: o.opId, status: "aplicada", erro: null as string | null };
+        let r: { opId: string; status: string; erro: string | null; codigo?: string } = { opId: o.opId, status: "aplicada", erro: null };
         if (o.tipo === "inspecao.salvar" && estado.ruim.has(o.inspecao.id)) r = { ...r, status: "rejeitada", erro: "Foto obrigatória." };
+        else if (o.tipo === "inspecao.salvar" && o.inspecao.status === "concluida" && estado.semEvidencia.has(o.inspecao.id))
+          r = { ...r, status: "rejeitada", erro: 'Item "Extintor": Tire ao menos uma foto deste item.', codigo: "evidencia_faltando" };
+        else if (o.tipo === "inspecao.salvar" && o.inspecao.status === "concluida") { inspecoes.add(o.inspecao.id); concluidas.add(o.inspecao.id); }
         else if (o.tipo === "inspecao.salvar") inspecoes.add(o.inspecao.id);
         else if (o.tipo === "evidencia.registrar" && !inspecoes.has(o.evidencia.inspecaoId)) r = { ...r, status: "rejeitada", erro: "Inspeção da evidência não encontrada." };
         respostas.set(o.opId, r);
@@ -187,7 +191,7 @@ function servidorComMemoria() {
     if (url.startsWith("/api/inspecoes")) return json({ inspecoes: [], servidorEm: new Date().toISOString() });
     return new Response("{}", { status: 404 });
   }));
-  return { estado, inspecoes, fotos };
+  return { estado, inspecoes, concluidas, fotos };
 }
 
 describe("recusa num servidor que lembra a resposta de cada opId", () => {
@@ -218,6 +222,36 @@ describe("recusa num servidor que lembra a resposta de cada opId", () => {
     await sincronizar();
     expect(await banco.fila.count()).toBe(0);
     expect(srv.fotos).toEqual([`/api/evidencias/${foto.id}/arquivo`]);
+  });
+});
+
+describe("concluída e recusada por evidência faltando", () => {
+  it("volta para em andamento no aparelho, aceita a correção e sobe concluída", async () => {
+    const srv = servidorComMemoria();
+    const i = await repositorioInspecao.criar(ctx);
+    await repositorioInspecao.salvarResposta(i.id, { itemId: uid(), status: "conforme", observacao: null, naoConformidade: null, evidenciaIds: [] });
+    await repositorioInspecao.concluir(i.id);
+    srv.estado.semEvidencia.add(i.id);
+    await sincronizar();
+    expect((await banco.inspecoes.get(i.id))!.status).toBe("em_andamento");
+    expect((await banco.fila.toArray()).map((o) => [o.estado, o.rejeicao?.codigo])).toEqual([["rejeitada", "evidencia_faltando"]]);
+
+    srv.estado.semEvidencia.clear(); // o inspetor tira a foto que faltava
+    await repositorioInspecao.salvarResposta(i.id, { itemId: uid(), status: "conforme", observacao: "corrigido", naoConformidade: null, evidenciaIds: [] });
+    await repositorioInspecao.concluir(i.id);
+    await sincronizar();
+    expect(await banco.fila.count()).toBe(0);
+    expect(srv.concluidas.has(i.id)).toBe(true);
+    expect((await banco.inspecoes.get(i.id))!.status).toBe("concluida");
+  });
+
+  it("outra recusa não reabre a inspeção concluída", async () => {
+    const srv = servidorComMemoria();
+    const i = await repositorioInspecao.criar(ctx);
+    await repositorioInspecao.concluir(i.id);
+    srv.estado.ruim.add(i.id);
+    await sincronizar();
+    expect((await banco.inspecoes.get(i.id))!.status).toBe("concluida");
   });
 });
 

@@ -170,7 +170,9 @@ function CartaoAndamento({ verificacao: v }: { verificacao: Inspecao }) {
   const navegar = useNavigate();
   const dados = useChecklistDaInspecao(v.id);
   const resultado = dados.carregando ? null : dados.resultado;
-  const situacao = useSituacaoSyncInspecao(v.id)?.situacao;
+  const sync = useSituacaoSyncInspecao(v.id);
+  const situacao = sync?.situacao;
+  const recusa = sync?.pendencias.recusas[0];
   const { veiculo, operacao } = useDescricaoInspecao(v);
   const placa = identificacaoVeiculo(veiculo);
   return (
@@ -186,6 +188,11 @@ function CartaoAndamento({ verificacao: v }: { verificacao: Inspecao }) {
         <SeloSituacao situacao={situacao} />
       </div>
       <p className="dica">{operacao}</p>
+      {recusa && (
+        <p className="dica" role="status">
+          <strong>Precisa de correção:</strong> {recusa}
+        </p>
+      )}
       {resultado ? (
         <>
           <BarraProgresso valor={resultado.respondidos} total={resultado.total} />
@@ -199,7 +206,7 @@ function CartaoAndamento({ verificacao: v }: { verificacao: Inspecao }) {
         </p>
       )}
       <button className="botao botao--primario" onClick={() => navegar(rotas.categorias(v.id))}>
-        Continuar verificação
+        {recusa ? 'Corrigir verificação' : 'Continuar verificação'}
       </button>
     </article>
   );
