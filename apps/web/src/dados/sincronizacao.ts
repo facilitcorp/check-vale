@@ -1,4 +1,4 @@
-import type { Catalogo, Inspecao, ModeloChecklist, OperacaoSync, ResultadoOp, SyncSaida, Veiculo } from "@checkvale/shared";
+import type { Catalogo, Inspecao, ModeloChecklist, SyncSaida, Veiculo } from "@checkvale/shared";
 import { chamarApi, ErroDaApi, ErroRede } from "../lib/api";
 import { banco, chaveModelo, gravarMeta, idDispositivo, lerMeta } from "./banco";
 import { aoEnfileirar, contarPendentes, inspecaoDaOp } from "./fila";
@@ -58,9 +58,9 @@ async function enviarFila(): Promise<void> {
     });
     if (lote.length === 0) return;
     const seqs = lote.map((o) => o.seq!);
-    let resultados: ResultadoOp[];
+    let saida: SyncSaida;
     try {
-      resultados = await enviarLote(dispositivoId, lote.map((o) => o.op));
+      saida = await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: lote.map((o) => o.op) }) });
     } catch (e) {
       const recusa = e instanceof ErroDaApi && RECUSA_DO_LOTE.has(e.status);
       if (recusa && lote.length === 1) {
@@ -70,7 +70,7 @@ async function enviarFila(): Promise<void> {
           const atual = await banco.fila.get(o!.seq!);
           if (atual?.estado !== "enviando") return;
           if (atual.op.opId !== o!.op.opId) return void (await banco.fila.update(o!.seq!, { estado: "pendente" }));
-          await banco.fila.update(o!.seq!, { estado: "rejeitada", erro: e.message, rejeicao: { codigo: e.codigo, inspecaoId: inspecaoDaOp(o!.op), detalhes: [] } });
+          await banco.fila.update(o!.seq!, { estado: "rejeitada", erro: semCaminho(e.message), rejeicao: { codigo: e.codigo, inspecaoId: inspecaoDaOp(o!.op), detalhes: [] } });
         });
         continue;
       }
@@ -79,7 +79,7 @@ async function enviarFila(): Promise<void> {
       if (recusa) { tamanho = 1; continue; }
       throw e;
     }
-    const porOp = new Map(resultados.map((r) => [r.opId, r]));
+    const porOp = new Map(saida.resultados.map((r) => [r.opId, r]));
     await banco.transaction("rw", banco.fila, async () => {
       for (const o of lote) {
         // A confirmação só vale para a operação que foi enviada. Se a linha agora guarda
@@ -103,26 +103,8 @@ async function enviarFila(): Promise<void> {
   }
 }
 
-/**
- * 400 = o servidor recusou o lote INTEIRO por causa de uma operação (validação do
- * lote todo de uma vez). Reenviar o mesmo lote daria 400 para sempre e travaria a
- * fila. Então cada operação vai sozinha: as válidas são aplicadas e só a culpada
- * fica "rejeitada", com a mensagem do servidor. Nada é descartado do aparelho.
- */
 /** "operacoes.0.inspecao.respostas.3.evidenciaIds: Foto obrigatória…" → "Foto obrigatória…": o inspetor lê a regra, não o caminho do campo. */
 const semCaminho = (m: string) => [...new Set(m.split("; ").map((p) => p.replace(/^[\w.]+: /, "")))].join("; ");
-
-async function enviarLote(dispositivoId: string, ops: OperacaoSync[]): Promise<ResultadoOp[]> {
-  try {
-    return (await chamarApi<SyncSaida>("/sync", { method: "POST", body: JSON.stringify({ dispositivoId, operacoes: ops }) })).resultados;
-  } catch (e) {
-    if (!(e instanceof ErroDaApi && e.status === 400)) throw e;
-    if (ops.length === 1) return [{ opId: ops[0]!.opId, status: "rejeitada", erro: semCaminho(e.message) }];
-    const resultados: ResultadoOp[] = [];
-    for (const op of ops) resultados.push(...(await enviarLote(dispositivoId, [op])));
-    return resultados;
-  }
-}
 
 async function enviarFotos(): Promise<void> {
   // Só depois que os metadados chegaram (a op evidencia.registrar saiu da fila).

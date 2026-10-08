@@ -104,13 +104,15 @@ export function TelaInicio() {
 /** O que foi recusado, de qual veículo e por quê. Os dados continuam no aparelho e podem ir de novo. */
 function AvisoRecusas({ rejeitadas }: { rejeitadas: OpFila[] }) {
   const veiculos = useLiveQuery(() => banco.veiculos.toArray(), []);
+  const inspecoes = useLiveQuery(() => banco.inspecoes.toArray(), []);
   const placa = (id: string) => identificacaoVeiculo(veiculos?.find((x) => x.id === id));
-  const oQue = ({ op }: OpFila) =>
-    op.tipo === 'inspecao.salvar'
-      ? `Verificação ${placa(op.inspecao.veiculoId)}, iniciada em ${dataHora(op.inspecao.iniciadaEm)}`
-      : op.tipo === 'veiculo.salvar'
-        ? `Cadastro do veículo ${op.veiculo.placa ?? op.veiculo.codigo ?? ''}`.trim()
-        : 'Foto de uma verificação';
+  const verificacao = (i: Inspecao) => `Verificação ${placa(i.veiculoId)}, iniciada em ${dataHora(i.iniciadaEm)}`;
+  const oQue = ({ op }: OpFila) => {
+    if (op.tipo === 'inspecao.salvar') return verificacao(op.inspecao);
+    if (op.tipo === 'veiculo.salvar') return `Cadastro do veículo ${op.veiculo.placa ?? op.veiculo.codigo ?? ''}`.trim();
+    const dona = inspecoes?.find((i) => i.id === op.evidencia.inspecaoId);
+    return dona ? `Foto da ${verificacao(dona).replace('Verificação', 'verificação')}` : 'Foto de uma verificação';
+  };
   return (
     <div className="secao">
       <Aviso tom="erro">
